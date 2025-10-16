@@ -88,7 +88,7 @@ src/
 1. Clonar el repositorio:
 
 ```bash
-git clone https://github.com/tu-usuario/intranet-v2.git
+git clone https://github.com/lsalinasEcotrans/intranet-v2.git
 cd intranet-v2
 ```
 
