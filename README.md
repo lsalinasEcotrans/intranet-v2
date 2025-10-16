@@ -1,36 +1,155 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<!-- Datos de Inicio local -->
 
-## Getting Started
+npm run dev
 
-First, run the development server:
+# or
+
+yarn dev
+
+# or
+
+pnpm dev
+
+# or
+
+bun dev
+
+<!-- Datos de Inicio local -->
+
+# Intranet Corporativa V2
+
+Este proyecto es una **intranet corporativa** desarrollada con **Next.js (App Router)**, **React**, **TailwindCSS**, **React Query**, **Zustand** y **Axios**.
+Está pensado para manejar **rutas públicas y privadas**, con autenticación basada en **token seguro en cookie HttpOnly** y datos de usuario en **estado global (Zustand)**.
+
+---
+
+## 🔹 Estructura del proyecto
+
+```
+src/
+├── app/                        # Rutas y páginas Next.js (App Router)
+│   ├── layout.tsx              # Layout global, condicional para rutas privadas
+│   └── page.tsx                # Dashboard principal (privado)
+│
+├── components/                 # Componentes reutilizables
+│   ├── ui/                     # Botones, inputs, modales, etc.
+│   └── layouts/                # Navbar, Sidebar, Layouts
+│
+├── features/                   # Módulos/secciones de la intranet
+│   ├── usuarios/
+│   │   ├── pages/              # Páginas específicas de usuarios
+│   │   ├── components/         # Componentes del módulo usuarios
+│   │   └── hooks/              # Hooks específicos del módulo
+│   └── parametros/             # Otro módulo de ejemplo
+│
+├── lib/                        # Código compartido y utilidades
+│   ├── axiosClient.ts          # Configuración global de Axios
+│   ├── endpoints.ts            # URLs de APIs centralizadas
+│   ├── auth.ts                 # Funciones de autenticación y manejo de token
+│   └── utils.ts                # Helpers generales
+│
+├── hooks/                      # Hooks globales reutilizables
+├── store/                      # Estado global (Zustand)
+├── styles/                     # CSS / Tailwind / temas
+└── types/                      # Interfaces TypeScript, validaciones Zod
+```
+
+---
+
+## 🔹 Funcionalidades principales
+
+- **Autenticación segura**
+
+  - Token guardado en **cookie HttpOnly** (no accesible desde JS)
+  - Datos del usuario guardados en **Zustand** (estado global para frontend)
+  - Middleware revisa la cookie para proteger rutas privadas
+
+- **Rutas públicas y privadas**
+
+  - Públicas: `/login`, `/publico`
+  - Privadas: `/dashboard`, `/usuarios`, `/cargas`, etc.
+
+- **Gestión de APIs centralizada**
+
+  - Archivo `lib/endpoints.ts` para tener todas las URLs de APIs internas y externas
+  - `axiosClient.ts` con configuración global y envío automático de cookies
+
+- **Módulos independientes**
+
+  - Cada módulo tiene su propia carpeta con **páginas, componentes y hooks**
+  - Facilita el trabajo de varios desarrolladores en paralelo
+
+- **Estado global**
+
+  - `store/` usa **Zustand** para manejar información de usuario y otros estados compartidos
+  - Fácil de extender a otros módulos
+
+- **React Query**
+
+  - Manejo de consultas y caché de datos de manera eficiente
+
+---
+
+## 🔹 Reglas para contribuir
+
+1. Cada **módulo** debe tener su propia carpeta en `features/`
+2. Los **componentes reutilizables** van en `components/ui`
+3. Las **funciones compartidas** van en `lib/`
+4. El **estado global** se maneja en `store/`
+5. **Endpoints** se agregan únicamente en `lib/endpoints.ts`
+6. Respetar nombres de rutas públicas y privadas para middleware
+
+---
+
+## 🔹 Cómo empezar
+
+1. Clonar el repositorio:
+
+```bash
+git clone https://github.com/tu-usuario/intranet-v2.git
+cd intranet-v2
+```
+
+2. Instalar dependencias:
+
+```bash
+npm install
+```
+
+3. Crear archivo `.env.local` con las variables de entorno:
+
+```env
+NEXT_PUBLIC_API_BASE=https://tu-api.com
+```
+
+4. Ejecutar proyecto en modo desarrollo:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+5. Acceder a la intranet:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+   - Público: `http://localhost:3000/login`
+   - Privado: `http://localhost:3000/` (requiere login)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## 🔹 Buenas prácticas
 
-To learn more about Next.js, take a look at the following resources:
+- Usar **hooks y components** reutilizables para mantener código limpio
+- Mantener **endpoints centralizados**
+- Nunca almacenar el **token** en `localStorage` en producción
+- Seguir la estructura de carpetas para que el proyecto sea escalable
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🔹 Próximos pasos sugeridos
 
-## Deploy on Vercel
+- Integrar React Query con `axiosClient` y endpoints para cada módulo
+- Crear módulos: Usuarios, Parámetros, Cargas, etc.
+- Conectar correo corporativo y sistema de asignación de tareas
+- Manejo de archivos Excel (`xlsx`) para cargas masivas
+- Mejorar UI con `shadcn/ui` y TailwindCSS
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
