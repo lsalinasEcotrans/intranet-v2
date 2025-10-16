@@ -1,21 +1,3 @@
-<!-- Datos de Inicio local -->
-
-npm run dev
-
-# or
-
-yarn dev
-
-# or
-
-pnpm dev
-
-# or
-
-bun dev
-
-<!-- Datos de Inicio local -->
-
 # Intranet Corporativa V2
 
 Este proyecto es una **intranet corporativa** desarrollada con **Next.js (App Router)**, **React**, **TailwindCSS**, **React Query**, **Zustand** y **Axios**.
