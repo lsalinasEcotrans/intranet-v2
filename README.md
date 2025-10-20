@@ -5,35 +5,60 @@ Está pensado para manejar **rutas públicas y privadas**, con autenticación ba
 
 ---
 
+## 🚀 Tecnologías principales
+
+| Herramienta                      | Uso                                                           |
+| -------------------------------- | ------------------------------------------------------------- |
+| **Next.js 15**                   | Framework principal (App Router)                              |
+| **React 19**                     | UI moderna y reactiva                                         |
+| **Shadcn/UI**                    | Componentes estilizados con Tailwind                          |
+| **TailwindCSS 4**                | Sistema de estilos                                            |
+| **Axios**                        | Cliente HTTP para consumo de APIs                             |
+| **TanStack Query (React Query)** | Manejo de estados asíncronos (fetching, caching, etc.)        |
+| **Zustand**                      | Estado global del usuario y configuraciones                   |
+| **Zod**                          | Validaciones y tipos                                          |
+| **XLSX**                         | Procesamiento de cargas masivas desde Excel                   |
+| **Socket.io**                    | Comunicación en tiempo real (futuro módulo de notificaciones) |
+| **Nodemailer**                   | Envío de correos desde el backend                             |
+
+## Base de datos – Siglas de módulos
+
+AUTH = Autenticación de usuarios y gestión de permisos (login, validación, roles, accesos)
+
 ## 🔹 Estructura del proyecto
 
 ```
 src/
-├── app/                        # Rutas y páginas Next.js (App Router)
-│   ├── layout.tsx              # Layout global, condicional para rutas privadas
-│   └── page.tsx                # Dashboard principal (privado)
+├── app/
+│   ├── dashboard/              # Ruta del dashboard (privada)
+│   ├── login/                  # Ruta de login (pública)
+│   ├── layout.tsx              # Layout global
+│   ├── page.tsx                # Redirección inicial o dashboard principal
+│   ├── favicon.ico
+│   └── globals.css
 │
-├── components/                 # Componentes reutilizables
+├── components/
 │   ├── ui/                     # Botones, inputs, modales, etc.
-│   └── layouts/                # Navbar, Sidebar, Layouts
+│   └── layouts/                # Navbar, Sidebar, Layouts comunes
 │
-├── features/                   # Módulos/secciones de la intranet
+├── features/
 │   ├── usuarios/
-│   │   ├── pages/              # Páginas específicas de usuarios
-│   │   ├── components/         # Componentes del módulo usuarios
-│   │   └── hooks/              # Hooks específicos del módulo
-│   └── parametros/             # Otro módulo de ejemplo
+│   │   ├── pages/
+│   │   ├── components/
+│   │   └── hooks/
+│   └── parametros/
 │
-├── lib/                        # Código compartido y utilidades
+├── lib/
 │   ├── axiosClient.ts          # Configuración global de Axios
-│   ├── endpoints.ts            # URLs de APIs centralizadas
-│   ├── auth.ts                 # Funciones de autenticación y manejo de token
+│   ├── endpoints.ts            # URLs centralizadas
+│   ├── auth.ts                 # Funciones de autenticación / token
 │   └── utils.ts                # Helpers generales
 │
 ├── hooks/                      # Hooks globales reutilizables
 ├── store/                      # Estado global (Zustand)
-├── styles/                     # CSS / Tailwind / temas
-└── types/                      # Interfaces TypeScript, validaciones Zod
+├── styles/                     # Tailwind / temas personalizados
+└── types/                      # Interfaces TypeScript y validaciones Zod
+
 ```
 
 ---
