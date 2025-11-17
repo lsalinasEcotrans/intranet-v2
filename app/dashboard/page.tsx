@@ -49,14 +49,6 @@ export default function DashboardPage() {
     }).format(date);
   };
 
-  const formatTime = (date: Date) => {
-    return new Intl.DateTimeFormat("es-CL", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    }).format(date);
-  };
-
   return (
     <div className="p-8">
       <div>

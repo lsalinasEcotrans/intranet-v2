@@ -2,21 +2,11 @@
 "use client";
 
 import * as React from "react";
-import {
-  FileCheck,
-  HandCoins,
-  Command,
-  Handshake,
-  Headset,
-  LifeBuoy,
-  FileChartPieIcon,
-  MonitorCog,
-  FlaskConical,
-  Wrench,
-  Database,
-} from "lucide-react";
+import { Command, LifeBuoy } from "lucide-react";
 import * as Icons from "lucide-react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+import logo from "@/public/preload.png";
 
 import { NavMain } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
@@ -116,11 +106,14 @@ export function AppSidebar({ user, menuItems, ...props }: AppSidebarProps) {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <a href="/dashboard">
-                <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                  <Command className="size-4" />
+                <div className="text-sidebar-primary-foreground flex aspect-square size-7 items-center justify-center">
+                  <Image src={logo} alt="Logo Ecotrans" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="text-xl font-medium">Ecotrans</span>
+                  <span className="text-xl font-medium font-ecotrans">
+                    <span className="text-verde">Eco</span>
+                    <span className="text-negro">trans</span>
+                  </span>
                 </div>
               </a>
             </SidebarMenuButton>
