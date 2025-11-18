@@ -1,6 +1,12 @@
-export function Loader({ size = 24 }: { size?: number }) {
+export function Loader({
+  size = 24,
+  className = "",
+}: {
+  size?: number;
+  className?: string;
+}) {
   return (
-    <div className="flex items-center justify-center">
+    <div className={`flex items-center justify-center ${className}`}>
       <svg
         className="animate-spin text-blue-600"
         style={{ width: size, height: size }}

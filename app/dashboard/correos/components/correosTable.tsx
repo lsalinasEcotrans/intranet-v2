@@ -39,6 +39,7 @@ import {
   User,
   EllipsisVertical,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface UserData {
   id: number;
@@ -64,7 +65,8 @@ export default function CorreosTable() {
   const [correos, setCorreos] = useState<Correo[]>([]);
   const [selectedCorreo, setSelectedCorreo] = useState<Correo | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
-  const [loading, setLoading] = useState(false);
+  // const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [estadoFilter, setEstadoFilter] = useState<EstadoFilter>("Todos");
   const [showOnlyMine, setShowOnlyMine] = useState(false);
@@ -90,12 +92,15 @@ export default function CorreosTable() {
 
   // Cargar correos
   useEffect(() => {
+    setLoading(true); // Mostrar skeleton
+
     axios
       .get(
         "https://ecotrans-intranet-370980788525.europe-west1.run.app/headers"
       )
       .then((res) => setCorreos(res.data))
-      .catch((err) => console.error("Error cargando correos:", err));
+      .catch((err) => console.error("Error cargando correos:", err))
+      .finally(() => setLoading(false)); // Ocultar skeleton
   }, []);
 
   // Normalizar estado
@@ -304,120 +309,140 @@ export default function CorreosTable() {
         </div>
       </div>
 
-      {/* Tabla */}
-      <div className="overflow-hidden rounded-lg border bg-white shadow-sm">
-        <Table>
-          <TableHeader className="bg-muted/50">
-            <TableRow>
-              <TableHead className="font-semibold">Fecha</TableHead>
-              <TableHead className="font-semibold">Asunto</TableHead>
-              <TableHead className="font-semibold">Intención</TableHead>
-              <TableHead className="font-semibold">Estado</TableHead>
-              <TableHead className="font-semibold">Asignado</TableHead>
-              <TableHead></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {correosFiltrados.length === 0 ? (
+      {/* Skeleton de tabla */}
+      {loading ? (
+        <div className="w-full overflow-x-auto rounded-lg border bg-white p-4 shadow-sm space-y-3">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <div key={n} className="flex items-center gap-4">
+              <Skeleton className="h-5 w-24" />
+              <Skeleton className="h-5 w-64" />
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-5 w-20" />
+              <Skeleton className="h-5 w-32" />
+            </div>
+          ))}
+        </div>
+      ) : (
+        // 👉 Aquí va tu tabla completa
+        <div className="w-full overflow-x-auto rounded-lg border bg-white shadow-sm">
+          <Table className="min-w-max">
+            <TableHeader className="bg-muted/50">
               <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="h-24 text-center text-muted-foreground"
-                >
-                  No se encontraron correos
-                </TableCell>
+                <TableHead className="font-semibold">Fecha</TableHead>
+                <TableHead className="font-semibold">Asunto</TableHead>
+                <TableHead className="font-semibold">Intención</TableHead>
+                <TableHead className="font-semibold">Estado</TableHead>
+                <TableHead className="font-semibold">Asignado</TableHead>
+                <TableHead></TableHead>
               </TableRow>
-            ) : (
-              correosFiltrados.map((correo) => {
-                const esMio = correo.asignado === user?.fullName;
-                const esClickeable =
-                  normalizeEstado(correo.estado) === "Pendiente" || esMio;
-
-                return (
-                  <TableRow
-                    key={correo.id}
-                    onClick={() => handleClick(correo)}
-                    className={`transition ${
-                      esClickeable ? "cursor-pointer hover:bg-muted/50" : ""
-                    } ${
-                      esMio ? "border-l-4 border-l-blue-500 bg-blue-50/30" : ""
-                    }`}
+            </TableHeader>
+            <TableBody>
+              {correosFiltrados.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={5}
+                    className="h-24 text-center text-muted-foreground"
                   >
-                    <TableCell className="font-medium">
-                      {new Date(correo.fecha).toLocaleDateString("es-CL", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {esMio && <User className="h-4 w-4 text-blue-600" />}
-                        <span className={esMio ? "font-medium" : ""}>
-                          {correo.asunto}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="font-normal">
-                        {correo.intencion}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{renderEstado(correo.estado)}</TableCell>
-                    <TableCell>
-                      {correo.asignado ? (
-                        <Badge
-                          variant="outline"
-                          className={
-                            esMio
-                              ? "border-blue-300 bg-blue-100 text-blue-700"
-                              : "border-gray-300 bg-gray-100 text-gray-700"
-                          }
-                        >
-                          <BadgeCheckIcon className="mr-1" size={14} />
-                          {correo.asignado}
-                        </Badge>
-                      ) : (
-                        <Badge
-                          variant="outline"
-                          className="text-muted-foreground"
-                        >
-                          Sin asignar
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
-                            size="icon"
-                          >
-                            <EllipsisVertical />
-                            <span className="sr-only">Open menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-32">
-                          <DropdownMenuItem>Cambiar estado</DropdownMenuItem>
-                          <DropdownMenuItem>Liberar</DropdownMenuItem>
-                          <DropdownMenuItem>Reasignar</DropdownMenuItem>
-                          <DropdownMenuItem>Ver correo</DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem variant="destructive">
-                            Papelera
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                    No se encontraron correos
+                  </TableCell>
+                </TableRow>
+              ) : (
+                correosFiltrados.map((correo) => {
+                  const esMio = correo.asignado === user?.fullName;
+                  const estadoNorm = normalizeEstado(correo.estado);
+                  const esClickeable =
+                    (estadoNorm === "Pendiente" || esMio) &&
+                    estadoNorm !== "Completado";
 
+                  return (
+                    <TableRow
+                      key={correo.id}
+                      onClick={() => esClickeable && handleClick(correo)}
+                      className={`transition ${
+                        esClickeable
+                          ? "cursor-pointer hover:bg-muted/50"
+                          : "cursor-not-allowed"
+                      } ${
+                        esMio
+                          ? "border-l-4 border-l-blue-500 bg-blue-50/30"
+                          : ""
+                      }`}
+                    >
+                      <TableCell className="font-medium">
+                        {new Date(correo.fecha).toLocaleDateString("es-CL", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {esMio && <User className="h-4 w-4 text-blue-600" />}
+                          <span className={esMio ? "font-medium" : ""}>
+                            {correo.asunto}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="font-normal">
+                          {correo.intencion}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{renderEstado(correo.estado)}</TableCell>
+                      <TableCell>
+                        {correo.asignado ? (
+                          <Badge
+                            variant="outline"
+                            className={
+                              esMio
+                                ? "border-blue-300 bg-blue-100 text-blue-700"
+                                : "border-gray-300 bg-gray-100 text-gray-700"
+                            }
+                          >
+                            <BadgeCheckIcon className="mr-1" size={14} />
+                            {correo.asignado}
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-muted-foreground"
+                          >
+                            Sin asignar
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                              size="icon"
+                            >
+                              <EllipsisVertical />
+                              <span className="sr-only">Open menu</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-32">
+                            <DropdownMenuItem>Cambiar estado</DropdownMenuItem>
+                            <DropdownMenuItem>Liberar</DropdownMenuItem>
+                            <DropdownMenuItem>Reasignar</DropdownMenuItem>
+                            <DropdownMenuItem>Ver correo</DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem variant="destructive">
+                              Papelera
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
       {/* Diálogo de confirmación */}
       {typeof window !== "undefined" && (
         <Dialog open={openDialog} onOpenChange={setOpenDialog}>
