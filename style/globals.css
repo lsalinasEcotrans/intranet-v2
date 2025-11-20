@@ -120,3 +120,21 @@
     @apply bg-background text-foreground;
   }
 }
+
+@font-face {
+  font-family: "TypeRoundBold";
+  src: url("./fonts/FontEcotrans.woff2") format("truetype");
+}
+
+.font-ecotrans {
+  font-family: "TypeRoundBold", Courier, monospace !important;
+  text-transform: none !important;
+  font-size: 30px;
+}
+
+.text-verde {
+  color: #6c9e3c !important;
+}
+.text-negro {
+  color: #091e3e !important;
+}
