@@ -154,3 +154,91 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+export async function PUT(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const messageId = body?.messageId;
+    const replyBody = body?.replyBody || ""; // HTML permitido
+
+    if (!messageId) {
+      return NextResponse.json(
+        { error: "Falta messageId en body" },
+        { status: 400 }
+      );
+    }
+
+    const token = await getAccessToken();
+
+    // 1️⃣ Crear el borrador "Reply"
+    const createReplyUrl = `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(
+      userEmail
+    )}/messages/${encodeURIComponent(messageId)}/createReply`;
+
+    const draftRes = await fetch(createReplyUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}),
+    });
+
+    if (!draftRes.ok) {
+      const txt = await draftRes.text();
+      throw new Error(`Error creando reply: ${draftRes.status} - ${txt}`);
+    }
+
+    const draft = await draftRes.json();
+    const draftId = draft.id;
+
+    // 2️⃣ Actualizar el borrador con el contenido del reply
+    const updateUrl = `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(
+      userEmail
+    )}/messages/${encodeURIComponent(draftId)}`;
+
+    const updateRes = await fetch(updateUrl, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        body: {
+          contentType: "HTML",
+          content: replyBody,
+        },
+      }),
+    });
+
+    if (!updateRes.ok) {
+      const txt = await updateRes.text();
+      throw new Error(`Error actualizando reply: ${updateRes.status} - ${txt}`);
+    }
+
+    // 3️⃣ Enviar el reply
+    const sendUrl = `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(
+      userEmail
+    )}/messages/${encodeURIComponent(draftId)}/send`;
+
+    const sendRes = await fetch(sendUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!sendRes.ok) {
+      const txt = await sendRes.text();
+      throw new Error(`Error enviando reply: ${sendRes.status} - ${txt}`);
+    }
+
+    return NextResponse.json({ success: true, draftId });
+  } catch (err: any) {
+    console.error(err);
+    return NextResponse.json(
+      { error: err.message || String(err) },
+      { status: 500 }
+    );
+  }
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import {
@@ -21,7 +21,6 @@ import {
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
@@ -58,14 +57,27 @@ interface Correo {
   intencion: string;
 }
 
+interface CorreoNormalizado extends Correo {
+  estadoNormalizado: string;
+  fechaTimestamp: number;
+  esMio: boolean;
+}
+
 type EstadoFilter = "Todos" | "Pendiente" | "En proceso" | "Completado";
+
+// ✅ Función de normalización fuera del componente
+const normalizeEstado = (estado: string): string => {
+  if (estado === "1" || estado === "Pendiente") return "Pendiente";
+  if (estado === "3" || estado === "En proceso") return "En proceso";
+  if (estado === "4" || estado === "Completado") return "Completado";
+  return estado;
+};
 
 export default function CorreosTable() {
   const [user, setUser] = useState<UserData | null>(null);
   const [correos, setCorreos] = useState<Correo[]>([]);
   const [selectedCorreo, setSelectedCorreo] = useState<Correo | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
-  // const [loading, setLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [estadoFilter, setEstadoFilter] = useState<EstadoFilter>("Todos");
@@ -92,7 +104,7 @@ export default function CorreosTable() {
 
   // Cargar correos
   useEffect(() => {
-    setLoading(true); // Mostrar skeleton
+    setLoading(true);
 
     axios
       .get(
@@ -100,87 +112,91 @@ export default function CorreosTable() {
       )
       .then((res) => setCorreos(res.data))
       .catch((err) => console.error("Error cargando correos:", err))
-      .finally(() => setLoading(false)); // Ocultar skeleton
+      .finally(() => setLoading(false));
   }, []);
 
-  // Normalizar estado
-  const normalizeEstado = (estado: string): string => {
-    if (estado === "1" || estado === "Pendiente") return "Pendiente";
-    if (estado === "3" || estado === "En proceso") return "En proceso";
-    if (estado === "4" || estado === "Completado") return "Completado";
-    return estado;
-  };
+  // ✅ Pre-procesar correos con datos normalizados (SE CALCULA UNA SOLA VEZ)
+  const correosNormalizados = useMemo<CorreoNormalizado[]>(() => {
+    return correos.map((correo) => ({
+      ...correo,
+      estadoNormalizado: normalizeEstado(correo.estado),
+      fechaTimestamp: new Date(correo.fecha).getTime(),
+      esMio: correo.asignado === user?.fullName,
+    }));
+  }, [correos, user?.fullName]);
 
-  // Filtrar y ordenar correos
+  // ✅ Contar correos SOLO cuando cambien los correos normalizados
+  const contadores = useMemo(() => {
+    const todos = correosNormalizados.length;
+    let pendientes = 0;
+    let enProceso = 0;
+    let completados = 0;
+    let mios = 0;
+
+    // Una sola iteración para calcular todos los contadores
+    correosNormalizados.forEach((c) => {
+      if (c.estadoNormalizado === "Pendiente") pendientes++;
+      if (c.estadoNormalizado === "En proceso") enProceso++;
+      if (c.estadoNormalizado === "Completado") completados++;
+      if (c.esMio) mios++;
+    });
+
+    return { todos, pendientes, enProceso, completados, mios };
+  }, [correosNormalizados]);
+
+  // ✅ Filtrar y ordenar correos (OPTIMIZADO)
   const correosFiltrados = useMemo(() => {
-    let filtered = correos.filter(() => true); // Crear nueva referencia
+    let filtered = correosNormalizados;
 
     // Filtro por búsqueda
     if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter((c) =>
-        c.asunto.toLowerCase().includes(searchTerm.toLowerCase())
+        c.asunto.toLowerCase().includes(searchLower)
       );
     }
 
-    // Filtro por estado (solo si NO es "Todos")
-    if (estadoFilter && estadoFilter !== "Todos") {
-      filtered = filtered.filter((c) => {
-        const estadoNorm = normalizeEstado(c.estado);
-        return estadoNorm === estadoFilter;
-      });
+    // Filtro por estado
+    if (estadoFilter !== "Todos") {
+      filtered = filtered.filter((c) => c.estadoNormalizado === estadoFilter);
     }
 
     // Filtro "solo míos"
-    if (showOnlyMine && user) {
-      filtered = filtered.filter((c) => c.asignado === user.fullName);
+    if (showOnlyMine) {
+      filtered = filtered.filter((c) => c.esMio);
     }
 
-    // Ordenar: primero los del usuario, luego por fecha
+    // Ordenar: primero los del usuario, luego por fecha (DESC)
     return filtered.sort((a, b) => {
-      if (user) {
-        const aEsMio = a.asignado === user.fullName;
-        const bEsMio = b.asignado === user.fullName;
-        if (aEsMio && !bEsMio) return -1;
-        if (!aEsMio && bEsMio) return 1;
-      }
-      return new Date(b.fecha).getTime() - new Date(a.fecha).getTime();
+      if (a.esMio && !b.esMio) return -1;
+      if (!a.esMio && b.esMio) return 1;
+      return b.fechaTimestamp - a.fechaTimestamp;
     });
-  }, [correos, searchTerm, estadoFilter, showOnlyMine, user]);
+  }, [correosNormalizados, searchTerm, estadoFilter, showOnlyMine]);
 
-  // Contar correos por estado
-  const contadores = useMemo(() => {
-    return {
-      todos: correos.length,
-      pendientes: correos.filter(
-        (c) => normalizeEstado(c.estado) === "Pendiente"
-      ).length,
-      enProceso: correos.filter(
-        (c) => normalizeEstado(c.estado) === "En proceso"
-      ).length,
-      completados: correos.filter(
-        (c) => normalizeEstado(c.estado) === "Completado"
-      ).length,
-      mios: correos.filter((c) => c.asignado === user?.fullName).length,
-    };
-  }, [correos, user]);
+  // ✅ Callbacks memoizados
+  const handleClick = useCallback(
+    (correo: CorreoNormalizado) => {
+      if (!user) return;
 
-  // Clic en correo
-  const handleClick = (correo: Correo) => {
-    if (!user) return;
+      const intencionParam = encodeURIComponent(correo.intencion);
 
-    if (correo.asignado === user.fullName) {
-      router.push(`/dashboard/correos/owa_detalle/${correo.idCorreo}`);
-      return;
-    }
+      if (correo.esMio) {
+        router.push(
+          `/dashboard/correos/owa_detalle/${correo.idCorreo}?intencion=${intencionParam}`
+        );
+        return;
+      }
 
-    if (normalizeEstado(correo.estado) === "Pendiente") {
-      setSelectedCorreo(correo);
-      setOpenDialog(true);
-    }
-  };
+      if (correo.estadoNormalizado === "Pendiente") {
+        setSelectedCorreo(correo);
+        setOpenDialog(true);
+      }
+    },
+    [user, router]
+  );
 
-  // Autoasignar
-  const handleAutoAsignar = async () => {
+  const handleAutoAsignar = useCallback(async () => {
     if (!selectedCorreo || !user) return;
 
     setLoading(true);
@@ -199,16 +215,20 @@ export default function CorreosTable() {
       );
 
       setOpenDialog(false);
-      router.push(`/dashboard/correos/owa_detalle/${selectedCorreo.idCorreo}`);
+      router.push(
+        `/dashboard/correos/owa_detalle/${
+          selectedCorreo.idCorreo
+        }?intencion=${encodeURIComponent(selectedCorreo.intencion)}`
+      );
     } catch (err) {
       console.error("Error autoasignando:", err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedCorreo, user, router]);
 
-  const renderEstado = (estado: string) => {
-    const estadoNorm = normalizeEstado(estado);
+  // ✅ Componente memoizado para badges de estado
+  const renderEstado = useCallback((estadoNorm: string) => {
     switch (estadoNorm) {
       case "Pendiente":
         return (
@@ -240,13 +260,12 @@ export default function CorreosTable() {
       default:
         return <Badge variant="secondary">{estadoNorm}</Badge>;
     }
-  };
+  }, []);
 
   return (
     <div className="space-y-4">
       {/* Barra de búsqueda y filtros */}
       <div className="flex flex-col gap-4 rounded-lg border bg-white p-4 shadow-sm">
-        {/* Búsqueda */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -257,7 +276,6 @@ export default function CorreosTable() {
           />
         </div>
 
-        {/* Filtros por estado */}
         <div className="flex flex-wrap items-center gap-2">
           <Filter className="h-4 w-4 text-muted-foreground" />
           <Badge
@@ -294,10 +312,8 @@ export default function CorreosTable() {
             Completados ({contadores.completados})
           </Badge>
 
-          {/* Separador */}
           <div className="mx-2 h-6 w-px bg-border" />
 
-          {/* Filtro "Solo míos" */}
           <Badge
             variant={showOnlyMine ? "default" : "outline"}
             className="cursor-pointer"
@@ -323,7 +339,6 @@ export default function CorreosTable() {
           ))}
         </div>
       ) : (
-        // 👉 Aquí va tu tabla completa
         <div className="w-full overflow-x-auto rounded-lg border bg-white shadow-sm">
           <Table className="min-w-max">
             <TableHeader className="bg-muted/50">
@@ -340,7 +355,7 @@ export default function CorreosTable() {
               {correosFiltrados.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
+                    colSpan={6}
                     className="h-24 text-center text-muted-foreground"
                   >
                     No se encontraron correos
@@ -348,11 +363,10 @@ export default function CorreosTable() {
                 </TableRow>
               ) : (
                 correosFiltrados.map((correo) => {
-                  const esMio = correo.asignado === user?.fullName;
-                  const estadoNorm = normalizeEstado(correo.estado);
                   const esClickeable =
-                    (estadoNorm === "Pendiente" || esMio) &&
-                    estadoNorm !== "Completado";
+                    (correo.estadoNormalizado === "Pendiente" ||
+                      correo.esMio) &&
+                    correo.estadoNormalizado !== "Completado";
 
                   return (
                     <TableRow
@@ -363,7 +377,7 @@ export default function CorreosTable() {
                           ? "cursor-pointer hover:bg-muted/50"
                           : "cursor-not-allowed"
                       } ${
-                        esMio
+                        correo.esMio
                           ? "border-l-4 border-l-blue-500 bg-blue-50/30"
                           : ""
                       }`}
@@ -375,26 +389,31 @@ export default function CorreosTable() {
                           year: "numeric",
                         })}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="max-w-[400px] truncate">
                         <div className="flex items-center gap-2">
-                          {esMio && <User className="h-4 w-4 text-blue-600" />}
-                          <span className={esMio ? "font-medium" : ""}>
+                          {correo.esMio && (
+                            <User className="h-4 w-4 text-blue-600" />
+                          )}
+                          <span className={correo.esMio ? "font-medium" : ""}>
                             {correo.asunto}
                           </span>
                         </div>
                       </TableCell>
+
                       <TableCell>
                         <Badge variant="secondary" className="font-normal">
                           {correo.intencion}
                         </Badge>
                       </TableCell>
-                      <TableCell>{renderEstado(correo.estado)}</TableCell>
+                      <TableCell>
+                        {renderEstado(correo.estadoNormalizado)}
+                      </TableCell>
                       <TableCell>
                         {correo.asignado ? (
                           <Badge
                             variant="outline"
                             className={
-                              esMio
+                              correo.esMio
                                 ? "border-blue-300 bg-blue-100 text-blue-700"
                                 : "border-gray-300 bg-gray-100 text-gray-700"
                             }
@@ -429,9 +448,7 @@ export default function CorreosTable() {
                             <DropdownMenuItem>Reasignar</DropdownMenuItem>
                             <DropdownMenuItem>Ver correo</DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem variant="destructive">
-                              Papelera
-                            </DropdownMenuItem>
+                            <DropdownMenuItem>Papelera</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -443,6 +460,7 @@ export default function CorreosTable() {
           </Table>
         </div>
       )}
+
       {/* Diálogo de confirmación */}
       {typeof window !== "undefined" && (
         <Dialog open={openDialog} onOpenChange={setOpenDialog}>

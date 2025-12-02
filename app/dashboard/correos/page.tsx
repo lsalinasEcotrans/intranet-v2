@@ -9,7 +9,6 @@ export default function Page() {
           Lista de correos pendientes para ingreso a Autocab.
         </p>
       </div>
-
       <CorreosTable />
     </div>
   );

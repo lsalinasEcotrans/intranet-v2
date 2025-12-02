@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { X, Download } from 'lucide-react';
+import { useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { X, Download } from "lucide-react";
 
 interface EmailModalProps {
   isOpen: boolean;
@@ -17,13 +17,13 @@ export default function EmailModal({
 }: EmailModalProps) {
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = 'auto';
+      document.body.style.overflow = "auto";
     }
 
     return () => {
-      document.body.style.overflow = 'auto';
+      document.body.style.overflow = "auto";
     };
   }, [isOpen]);
 
@@ -40,12 +40,7 @@ export default function EmailModal({
       >
         <div className="flex items-center justify-between p-6 border-b sticky top-0 bg-background/95 backdrop-blur-sm">
           <div className="flex-1 min-w-0">
-            <h2 className="text-xl font-bold truncate">
-              {emailData?.subject || 'Sin asunto'}
-            </h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              De: {emailData?.from?.emailAddress?.address || 'Desconocido'}
-            </p>
+            <h2 className="text-xl font-bold truncate">Detalle de Correo</h2>
           </div>
           <Button
             variant="ghost"
@@ -60,13 +55,21 @@ export default function EmailModal({
         <div className="flex-1 overflow-auto p-6">
           <div className="max-w-2xl mx-auto space-y-6">
             {/* Date & From Info */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">
                   Remitente
                 </p>
                 <p className="font-medium">
-                  {emailData?.from?.emailAddress?.address || 'Desconocido'}
+                  {emailData?.from?.emailAddress?.name || "Desconocido"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Correo
+                </p>
+                <p className="font-medium">
+                  {emailData?.from?.emailAddress?.address || "Desconocido"}
                 </p>
               </div>
               <div>
@@ -74,15 +77,16 @@ export default function EmailModal({
                   Fecha
                 </p>
                 <p className="font-medium">
-                  {new Date(
-                    emailData?.receivedDateTime
-                  ).toLocaleString('es-ES', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+                  {new Date(emailData?.receivedDateTime).toLocaleString(
+                    "es-ES",
+                    {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }
+                  )}
                 </p>
               </div>
             </div>
@@ -93,7 +97,7 @@ export default function EmailModal({
                 Asunto
               </p>
               <h3 className="text-2xl font-bold mt-2">
-                {emailData?.subject || '(Sin asunto)'}
+                {emailData?.subject || "(Sin asunto)"}
               </h3>
             </div>
 
@@ -126,11 +130,7 @@ export default function EmailModal({
                         </p>
                       </div>
                       <a href={file.dataUrl} download={file.name}>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="gap-2"
-                        >
+                        <Button size="sm" variant="outline" className="gap-2">
                           <Download className="w-4 h-4" />
                           Descargar
                         </Button>

@@ -1,19 +1,21 @@
-// components/owa/OWADetalle.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import EmailFormLayout from "../email-form-layout";
+import SoloCorreoLayout from "../SoloCorreoLayout";
 
 interface OWADetalleProps {
   id: string;
+  intencion: "Reserva" | "otros";
 }
 
-export default function OWADetalle({ id }: OWADetalleProps) {
+export default function OWADetalle({ id, intencion }: OWADetalleProps) {
   const [idOwa, setIdOwa] = useState<string | null>(null);
   const [emailData, setEmailData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // 1️⃣ Obtener idOwa
   useEffect(() => {
     if (!id) return;
 
@@ -36,6 +38,7 @@ export default function OWADetalle({ id }: OWADetalleProps) {
     fetchIdOwa();
   }, [id]);
 
+  // 2️⃣ Leer el correo desde /api/owa
   useEffect(() => {
     if (!idOwa) return;
 
@@ -60,9 +63,24 @@ export default function OWADetalle({ id }: OWADetalleProps) {
     fetchCorreo();
   }, [idOwa]);
 
+  // 3️⃣ Render según intención
   return (
     <main className="h-screen">
-      <EmailFormLayout emailData={emailData} loading={loading} error={error} />
+      {intencion === "Reserva" ? (
+        <EmailFormLayout
+          emailData={emailData}
+          loading={loading}
+          error={error}
+          intencion={intencion}
+        />
+      ) : (
+        <SoloCorreoLayout
+          emailData={emailData}
+          loading={loading}
+          error={error}
+          intencion={intencion}
+        />
+      )}
     </main>
   );
 }
