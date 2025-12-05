@@ -63,13 +63,20 @@ interface CorreoNormalizado extends Correo {
   esMio: boolean;
 }
 
-type EstadoFilter = "Todos" | "Pendiente" | "En proceso" | "Completado";
+type EstadoFilter =
+  | "Todos"
+  | "Pendiente"
+  | "En proceso"
+  | "Completado"
+  | "Espera de respuesta";
 
 // ✅ Función de normalización fuera del componente
 const normalizeEstado = (estado: string): string => {
   if (estado === "1" || estado === "Pendiente") return "Pendiente";
   if (estado === "3" || estado === "En proceso") return "En proceso";
   if (estado === "4" || estado === "Completado") return "Completado";
+  if (estado === "5" || estado === "Espera respuesta")
+    return "Espera de respuesta";
   return estado;
 };
 
@@ -104,15 +111,30 @@ export default function CorreosTable() {
 
   // Cargar correos
   useEffect(() => {
-    setLoading(true);
+    const fetchCorreos = () => {
+      axios
+        .get(
+          "https://ecotrans-intranet-370980788525.europe-west1.run.app/headers"
+        )
+        .then((res) => {
+          setCorreos((prev) => {
+            // Evitar pestañeo: actualizar solo si cambió
+            if (JSON.stringify(prev) !== JSON.stringify(res.data)) {
+              return res.data;
+            }
+            return prev;
+          });
+        })
+        .catch((err) => console.error("Error cargando correos:", err))
+        .finally(() => setLoading(false));
+    };
 
-    axios
-      .get(
-        "https://ecotrans-intranet-370980788525.europe-west1.run.app/headers"
-      )
-      .then((res) => setCorreos(res.data))
-      .catch((err) => console.error("Error cargando correos:", err))
-      .finally(() => setLoading(false));
+    setLoading(true);
+    fetchCorreos(); // primera carga
+
+    const interval = setInterval(fetchCorreos, 10000); // refrescar cada 5s
+
+    return () => clearInterval(interval);
   }, []);
 
   // ✅ Pre-procesar correos con datos normalizados (SE CALCULA UNA SOLA VEZ)
@@ -131,6 +153,7 @@ export default function CorreosTable() {
     let pendientes = 0;
     let enProceso = 0;
     let completados = 0;
+    let esperaRespuesta = 0;
     let mios = 0;
 
     // Una sola iteración para calcular todos los contadores
@@ -138,10 +161,11 @@ export default function CorreosTable() {
       if (c.estadoNormalizado === "Pendiente") pendientes++;
       if (c.estadoNormalizado === "En proceso") enProceso++;
       if (c.estadoNormalizado === "Completado") completados++;
+      if (c.estadoNormalizado === "Espera de respuesta") esperaRespuesta++;
       if (c.esMio) mios++;
     });
 
-    return { todos, pendientes, enProceso, completados, mios };
+    return { todos, pendientes, enProceso, completados, esperaRespuesta, mios };
   }, [correosNormalizados]);
 
   // ✅ Filtrar y ordenar correos (OPTIMIZADO)
@@ -257,6 +281,15 @@ export default function CorreosTable() {
             <Loader className="animate-spin" size={14} /> En proceso
           </Badge>
         );
+      case "Espera de respuesta":
+        return (
+          <Badge
+            variant="outline"
+            className="gap-1 border-blue-300 bg-blue-50 text-blue-700"
+          >
+            <ClockFading size={14} /> Espera respuesta
+          </Badge>
+        );
       default:
         return <Badge variant="secondary">{estadoNorm}</Badge>;
     }
@@ -310,6 +343,15 @@ export default function CorreosTable() {
             onClick={() => setEstadoFilter("Completado")}
           >
             Completados ({contadores.completados})
+          </Badge>
+          <Badge
+            variant={
+              estadoFilter === "Espera de respuesta" ? "default" : "outline"
+            }
+            className="cursor-pointer border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100"
+            onClick={() => setEstadoFilter("Espera de respuesta")}
+          >
+            Espera de respuesta ({contadores.esperaRespuesta})
           </Badge>
 
           <div className="mx-2 h-6 w-px bg-border" />

@@ -1,5 +1,8 @@
 "use client";
 
+import { useParams } from "next/navigation";
+import axios from "axios";
+
 import { Card, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -11,7 +14,7 @@ import { Mail, Maximize2 } from "lucide-react";
 import { CompleteButton } from "./owa-actions/CompleteButton";
 import { SpamButton } from "./owa-actions/MarkAsSpamButton";
 import { PendingButton } from "./owa-actions/WaitingResponseButton";
-import ReplyDialog from "./owa-actions/dialogs/ReplyDialog";
+import { ReplyButton } from "./owa-actions/ReplyButton";
 
 interface EmailViewerProps {
   emailData?: any;
@@ -26,6 +29,8 @@ export default function EmailViewer({
   intencion,
   onFullscreen,
 }: EmailViewerProps) {
+  const params = useParams();
+
   if (loading) {
     return (
       <div className="p-6 space-y-4">
@@ -106,25 +111,48 @@ export default function EmailViewer({
               <div className="flex flex-col items-end gap-3">
                 <ButtonGroup>
                   <CompleteButton
-                    emailId="12345"
-                    onConfirm={(numeroReserva) => {
-                      console.log("Reserva confirmada:", numeroReserva);
+                    emailId={emailData.id} // Este se usa para Informar
+                    onNoInform={async () => {
+                      try {
+                        await axios.put(
+                          `https://ecotrans-intranet-370980788525.europe-west1.run.app/headers/estado/${params.id}`,
+                          { estado: 2 }
+                        );
+                      } catch (error) {
+                        console.error("Error actualizando estado:", error);
+                      }
                     }}
                   />
                   <SpamButton
-                    emailId="12345"
-                    onConfirm={() => {
-                      console.log("Correo marcado como spam");
+                    emailId={emailData.id} // Este se usa para Informar
+                    onNoInform={async () => {
+                      try {
+                        await axios.put(
+                          `https://ecotrans-intranet-370980788525.europe-west1.run.app/headers/estado/${params.id}`,
+                          { estado: 6 }
+                        );
+                      } catch (error) {
+                        console.error("Error actualizando estado:", error);
+                      }
                     }}
                   />
                   <PendingButton
-                    emailId={emailData.id}
-                    onConfirm={() => {
-                      console.log("Correo marcado como pendiente");
+                    emailId={emailData.id} // Este se usa para Informar
+                    onNoInform={async () => {
+                      try {
+                        await axios.put(
+                          `https://ecotrans-intranet-370980788525.europe-west1.run.app/headers/estado/${params.id}`,
+                          { estado: 5 }
+                        );
+                      } catch (error) {
+                        console.error("Error actualizando estado:", error);
+                      }
                     }}
                   />
-
-                  <ReplyDialog />
+                  <ReplyButton
+                    emailId={emailData.id}
+                    rowId={params.id as string}
+                  />
                 </ButtonGroup>
               </div>
             )}
