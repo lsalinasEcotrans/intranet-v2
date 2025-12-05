@@ -24,6 +24,7 @@ Está pensado para manejar **rutas públicas y privadas**, con autenticación ba
 ## Base de datos – Siglas de módulos
 
 AUTH = Autenticación de usuarios y gestión de permisos (login, validación, roles, accesos)
+OWA = Lectura y uso de correo electronico microsoft 365 (recepcion, lectura y reenvio)
 
 ## 🔹 Estructura del proyecto
 

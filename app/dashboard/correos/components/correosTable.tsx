@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import {
@@ -21,7 +21,6 @@ import {
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
@@ -39,6 +38,7 @@ import {
   User,
   EllipsisVertical,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface UserData {
   id: number;
@@ -57,14 +57,35 @@ interface Correo {
   intencion: string;
 }
 
-type EstadoFilter = "Todos" | "Pendiente" | "En proceso" | "Completado";
+interface CorreoNormalizado extends Correo {
+  estadoNormalizado: string;
+  fechaTimestamp: number;
+  esMio: boolean;
+}
+
+type EstadoFilter =
+  | "Todos"
+  | "Pendiente"
+  | "En proceso"
+  | "Completado"
+  | "Espera de respuesta";
+
+// ✅ Función de normalización fuera del componente
+const normalizeEstado = (estado: string): string => {
+  if (estado === "1" || estado === "Pendiente") return "Pendiente";
+  if (estado === "3" || estado === "En proceso") return "En proceso";
+  if (estado === "4" || estado === "Completado") return "Completado";
+  if (estado === "5" || estado === "Espera respuesta")
+    return "Espera de respuesta";
+  return estado;
+};
 
 export default function CorreosTable() {
   const [user, setUser] = useState<UserData | null>(null);
   const [correos, setCorreos] = useState<Correo[]>([]);
   const [selectedCorreo, setSelectedCorreo] = useState<Correo | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [estadoFilter, setEstadoFilter] = useState<EstadoFilter>("Todos");
   const [showOnlyMine, setShowOnlyMine] = useState(false);
@@ -90,92 +111,116 @@ export default function CorreosTable() {
 
   // Cargar correos
   useEffect(() => {
-    axios
-      .get(
-        "https://ecotrans-intranet-370980788525.europe-west1.run.app/headers"
-      )
-      .then((res) => setCorreos(res.data))
-      .catch((err) => console.error("Error cargando correos:", err));
+    const fetchCorreos = () => {
+      axios
+        .get(
+          "https://ecotrans-intranet-370980788525.europe-west1.run.app/headers"
+        )
+        .then((res) => {
+          setCorreos((prev) => {
+            // Evitar pestañeo: actualizar solo si cambió
+            if (JSON.stringify(prev) !== JSON.stringify(res.data)) {
+              return res.data;
+            }
+            return prev;
+          });
+        })
+        .catch((err) => console.error("Error cargando correos:", err))
+        .finally(() => setLoading(false));
+    };
+
+    setLoading(true);
+    fetchCorreos(); // primera carga
+
+    const interval = setInterval(fetchCorreos, 10000); // refrescar cada 5s
+
+    return () => clearInterval(interval);
   }, []);
 
-  // Normalizar estado
-  const normalizeEstado = (estado: string): string => {
-    if (estado === "1" || estado === "Pendiente") return "Pendiente";
-    if (estado === "3" || estado === "En proceso") return "En proceso";
-    if (estado === "4" || estado === "Completado") return "Completado";
-    return estado;
-  };
+  // ✅ Pre-procesar correos con datos normalizados (SE CALCULA UNA SOLA VEZ)
+  const correosNormalizados = useMemo<CorreoNormalizado[]>(() => {
+    return correos.map((correo) => ({
+      ...correo,
+      estadoNormalizado: normalizeEstado(correo.estado),
+      fechaTimestamp: new Date(correo.fecha).getTime(),
+      esMio: correo.asignado === user?.fullName,
+    }));
+  }, [correos, user?.fullName]);
 
-  // Filtrar y ordenar correos
+  // ✅ Contar correos SOLO cuando cambien los correos normalizados
+  const contadores = useMemo(() => {
+    const todos = correosNormalizados.length;
+    let pendientes = 0;
+    let enProceso = 0;
+    let completados = 0;
+    let esperaRespuesta = 0;
+    let mios = 0;
+
+    // Una sola iteración para calcular todos los contadores
+    correosNormalizados.forEach((c) => {
+      if (c.estadoNormalizado === "Pendiente") pendientes++;
+      if (c.estadoNormalizado === "En proceso") enProceso++;
+      if (c.estadoNormalizado === "Completado") completados++;
+      if (c.estadoNormalizado === "Espera de respuesta") esperaRespuesta++;
+      if (c.esMio) mios++;
+    });
+
+    return { todos, pendientes, enProceso, completados, esperaRespuesta, mios };
+  }, [correosNormalizados]);
+
+  // ✅ Filtrar y ordenar correos (OPTIMIZADO)
   const correosFiltrados = useMemo(() => {
-    let filtered = correos.filter(() => true); // Crear nueva referencia
+    let filtered = correosNormalizados;
 
     // Filtro por búsqueda
     if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter((c) =>
-        c.asunto.toLowerCase().includes(searchTerm.toLowerCase())
+        c.asunto.toLowerCase().includes(searchLower)
       );
     }
 
-    // Filtro por estado (solo si NO es "Todos")
-    if (estadoFilter && estadoFilter !== "Todos") {
-      filtered = filtered.filter((c) => {
-        const estadoNorm = normalizeEstado(c.estado);
-        return estadoNorm === estadoFilter;
-      });
+    // Filtro por estado
+    if (estadoFilter !== "Todos") {
+      filtered = filtered.filter((c) => c.estadoNormalizado === estadoFilter);
     }
 
     // Filtro "solo míos"
-    if (showOnlyMine && user) {
-      filtered = filtered.filter((c) => c.asignado === user.fullName);
+    if (showOnlyMine) {
+      filtered = filtered.filter((c) => c.esMio);
     }
 
-    // Ordenar: primero los del usuario, luego por fecha
+    // Ordenar: primero los del usuario, luego por fecha (DESC)
     return filtered.sort((a, b) => {
-      if (user) {
-        const aEsMio = a.asignado === user.fullName;
-        const bEsMio = b.asignado === user.fullName;
-        if (aEsMio && !bEsMio) return -1;
-        if (!aEsMio && bEsMio) return 1;
-      }
-      return new Date(b.fecha).getTime() - new Date(a.fecha).getTime();
+      if (a.esMio && !b.esMio) return -1;
+      if (!a.esMio && b.esMio) return 1;
+      return b.fechaTimestamp - a.fechaTimestamp;
     });
-  }, [correos, searchTerm, estadoFilter, showOnlyMine, user]);
+  }, [correosNormalizados, searchTerm, estadoFilter, showOnlyMine]);
 
-  // Contar correos por estado
-  const contadores = useMemo(() => {
-    return {
-      todos: correos.length,
-      pendientes: correos.filter(
-        (c) => normalizeEstado(c.estado) === "Pendiente"
-      ).length,
-      enProceso: correos.filter(
-        (c) => normalizeEstado(c.estado) === "En proceso"
-      ).length,
-      completados: correos.filter(
-        (c) => normalizeEstado(c.estado) === "Completado"
-      ).length,
-      mios: correos.filter((c) => c.asignado === user?.fullName).length,
-    };
-  }, [correos, user]);
+  // ✅ Callbacks memoizados
+  const handleClick = useCallback(
+    (correo: CorreoNormalizado) => {
+      if (!user) return;
 
-  // Clic en correo
-  const handleClick = (correo: Correo) => {
-    if (!user) return;
+      const intencionParam = encodeURIComponent(correo.intencion);
 
-    if (correo.asignado === user.fullName) {
-      router.push(`/dashboard/correos/owa_detalle/${correo.idCorreo}`);
-      return;
-    }
+      if (correo.esMio) {
+        router.push(
+          `/dashboard/correos/owa_detalle/${correo.idCorreo}?intencion=${intencionParam}`
+        );
+        return;
+      }
 
-    if (normalizeEstado(correo.estado) === "Pendiente") {
-      setSelectedCorreo(correo);
-      setOpenDialog(true);
-    }
-  };
+      if (correo.estadoNormalizado === "Pendiente") {
+        setSelectedCorreo(correo);
+        setOpenDialog(true);
+      }
+    },
+    [user, router]
+  );
 
-  // Autoasignar
-  const handleAutoAsignar = async () => {
+  const handleAutoAsignar = useCallback(async () => {
     if (!selectedCorreo || !user) return;
 
     setLoading(true);
@@ -194,16 +239,20 @@ export default function CorreosTable() {
       );
 
       setOpenDialog(false);
-      router.push(`/dashboard/correos/owa_detalle/${selectedCorreo.idCorreo}`);
+      router.push(
+        `/dashboard/correos/owa_detalle/${
+          selectedCorreo.idCorreo
+        }?intencion=${encodeURIComponent(selectedCorreo.intencion)}`
+      );
     } catch (err) {
       console.error("Error autoasignando:", err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedCorreo, user, router]);
 
-  const renderEstado = (estado: string) => {
-    const estadoNorm = normalizeEstado(estado);
+  // ✅ Componente memoizado para badges de estado
+  const renderEstado = useCallback((estadoNorm: string) => {
     switch (estadoNorm) {
       case "Pendiente":
         return (
@@ -232,16 +281,24 @@ export default function CorreosTable() {
             <Loader className="animate-spin" size={14} /> En proceso
           </Badge>
         );
+      case "Espera de respuesta":
+        return (
+          <Badge
+            variant="outline"
+            className="gap-1 border-blue-300 bg-blue-50 text-blue-700"
+          >
+            <ClockFading size={14} /> Espera respuesta
+          </Badge>
+        );
       default:
         return <Badge variant="secondary">{estadoNorm}</Badge>;
     }
-  };
+  }, []);
 
   return (
     <div className="space-y-4">
       {/* Barra de búsqueda y filtros */}
       <div className="flex flex-col gap-4 rounded-lg border bg-white p-4 shadow-sm">
-        {/* Búsqueda */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -252,7 +309,6 @@ export default function CorreosTable() {
           />
         </div>
 
-        {/* Filtros por estado */}
         <div className="flex flex-wrap items-center gap-2">
           <Filter className="h-4 w-4 text-muted-foreground" />
           <Badge
@@ -288,11 +344,18 @@ export default function CorreosTable() {
           >
             Completados ({contadores.completados})
           </Badge>
+          <Badge
+            variant={
+              estadoFilter === "Espera de respuesta" ? "default" : "outline"
+            }
+            className="cursor-pointer border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100"
+            onClick={() => setEstadoFilter("Espera de respuesta")}
+          >
+            Espera de respuesta ({contadores.esperaRespuesta})
+          </Badge>
 
-          {/* Separador */}
           <div className="mx-2 h-6 w-px bg-border" />
 
-          {/* Filtro "Solo míos" */}
           <Badge
             variant={showOnlyMine ? "default" : "outline"}
             className="cursor-pointer"
@@ -304,119 +367,141 @@ export default function CorreosTable() {
         </div>
       </div>
 
-      {/* Tabla */}
-      <div className="overflow-hidden rounded-lg border bg-white shadow-sm">
-        <Table>
-          <TableHeader className="bg-muted/50">
-            <TableRow>
-              <TableHead className="font-semibold">Fecha</TableHead>
-              <TableHead className="font-semibold">Asunto</TableHead>
-              <TableHead className="font-semibold">Intención</TableHead>
-              <TableHead className="font-semibold">Estado</TableHead>
-              <TableHead className="font-semibold">Asignado</TableHead>
-              <TableHead></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {correosFiltrados.length === 0 ? (
+      {/* Skeleton de tabla */}
+      {loading ? (
+        <div className="w-full overflow-x-auto rounded-lg border bg-white p-4 shadow-sm space-y-3">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <div key={n} className="flex items-center gap-4">
+              <Skeleton className="h-5 w-24" />
+              <Skeleton className="h-5 w-64" />
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-5 w-20" />
+              <Skeleton className="h-5 w-32" />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="w-full overflow-x-auto rounded-lg border bg-white shadow-sm">
+          <Table className="min-w-max">
+            <TableHeader className="bg-muted/50">
               <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="h-24 text-center text-muted-foreground"
-                >
-                  No se encontraron correos
-                </TableCell>
+                <TableHead className="font-semibold">Fecha</TableHead>
+                <TableHead className="font-semibold">Asunto</TableHead>
+                <TableHead className="font-semibold">Intención</TableHead>
+                <TableHead className="font-semibold">Estado</TableHead>
+                <TableHead className="font-semibold">Asignado</TableHead>
+                <TableHead></TableHead>
               </TableRow>
-            ) : (
-              correosFiltrados.map((correo) => {
-                const esMio = correo.asignado === user?.fullName;
-                const esClickeable =
-                  normalizeEstado(correo.estado) === "Pendiente" || esMio;
-
-                return (
-                  <TableRow
-                    key={correo.id}
-                    onClick={() => handleClick(correo)}
-                    className={`transition ${
-                      esClickeable ? "cursor-pointer hover:bg-muted/50" : ""
-                    } ${
-                      esMio ? "border-l-4 border-l-blue-500 bg-blue-50/30" : ""
-                    }`}
+            </TableHeader>
+            <TableBody>
+              {correosFiltrados.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={6}
+                    className="h-24 text-center text-muted-foreground"
                   >
-                    <TableCell className="font-medium">
-                      {new Date(correo.fecha).toLocaleDateString("es-CL", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {esMio && <User className="h-4 w-4 text-blue-600" />}
-                        <span className={esMio ? "font-medium" : ""}>
-                          {correo.asunto}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="font-normal">
-                        {correo.intencion}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{renderEstado(correo.estado)}</TableCell>
-                    <TableCell>
-                      {correo.asignado ? (
-                        <Badge
-                          variant="outline"
-                          className={
-                            esMio
-                              ? "border-blue-300 bg-blue-100 text-blue-700"
-                              : "border-gray-300 bg-gray-100 text-gray-700"
-                          }
-                        >
-                          <BadgeCheckIcon className="mr-1" size={14} />
-                          {correo.asignado}
+                    No se encontraron correos
+                  </TableCell>
+                </TableRow>
+              ) : (
+                correosFiltrados.map((correo) => {
+                  const esClickeable =
+                    (correo.estadoNormalizado === "Pendiente" ||
+                      correo.esMio) &&
+                    correo.estadoNormalizado !== "Completado";
+
+                  return (
+                    <TableRow
+                      key={correo.id}
+                      onClick={() => esClickeable && handleClick(correo)}
+                      className={`transition ${
+                        esClickeable
+                          ? "cursor-pointer hover:bg-muted/50"
+                          : "cursor-not-allowed"
+                      } ${
+                        correo.esMio
+                          ? "border-l-4 border-l-blue-500 bg-blue-50/30"
+                          : ""
+                      }`}
+                    >
+                      <TableCell className="font-medium">
+                        {new Date(correo.fecha).toLocaleDateString("es-CL", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </TableCell>
+                      <TableCell className="max-w-[400px] truncate">
+                        <div className="flex items-center gap-2">
+                          {correo.esMio && (
+                            <User className="h-4 w-4 text-blue-600" />
+                          )}
+                          <span className={correo.esMio ? "font-medium" : ""}>
+                            {correo.asunto}
+                          </span>
+                        </div>
+                      </TableCell>
+
+                      <TableCell>
+                        <Badge variant="secondary" className="font-normal">
+                          {correo.intencion}
                         </Badge>
-                      ) : (
-                        <Badge
-                          variant="outline"
-                          className="text-muted-foreground"
-                        >
-                          Sin asignar
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
-                            size="icon"
+                      </TableCell>
+                      <TableCell>
+                        {renderEstado(correo.estadoNormalizado)}
+                      </TableCell>
+                      <TableCell>
+                        {correo.asignado ? (
+                          <Badge
+                            variant="outline"
+                            className={
+                              correo.esMio
+                                ? "border-blue-300 bg-blue-100 text-blue-700"
+                                : "border-gray-300 bg-gray-100 text-gray-700"
+                            }
                           >
-                            <EllipsisVertical />
-                            <span className="sr-only">Open menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-32">
-                          <DropdownMenuItem>Cambiar estado</DropdownMenuItem>
-                          <DropdownMenuItem>Liberar</DropdownMenuItem>
-                          <DropdownMenuItem>Reasignar</DropdownMenuItem>
-                          <DropdownMenuItem>Ver correo</DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem variant="destructive">
-                            Papelera
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                            <BadgeCheckIcon className="mr-1" size={14} />
+                            {correo.asignado}
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-muted-foreground"
+                          >
+                            Sin asignar
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                              size="icon"
+                            >
+                              <EllipsisVertical />
+                              <span className="sr-only">Open menu</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-32">
+                            <DropdownMenuItem>Cambiar estado</DropdownMenuItem>
+                            <DropdownMenuItem>Liberar</DropdownMenuItem>
+                            <DropdownMenuItem>Reasignar</DropdownMenuItem>
+                            <DropdownMenuItem>Ver correo</DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem>Papelera</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
       {/* Diálogo de confirmación */}
       {typeof window !== "undefined" && (

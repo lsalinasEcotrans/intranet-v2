@@ -1,0 +1,111 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { AlertTriangle, Loader2, ShieldAlert } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
+interface SpamButtonProps {
+  emailId: string;
+  onNoInform?: (emailId: string) => Promise<void>;
+}
+
+export function SpamButton({ emailId, onNoInform }: SpamButtonProps) {
+  const router = useRouter();
+
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  const handleSpam = async () => {
+    try {
+      setLoading(true);
+
+      await onNoInform?.(emailId);
+
+      setSuccess(true);
+
+      setTimeout(() => {
+        router.push("/dashboard/correos");
+      }, 1500);
+    } catch (error) {
+      console.error("❌ Error Spam:", error);
+      setLoading(false);
+    }
+  };
+
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="outline">
+          <AlertTriangle className="h-4 w-4" />
+          Spam
+        </Button>
+      </AlertDialogTrigger>
+
+      <AlertDialogContent>
+        {/* ------------------ CONFIRMACIÓN ------------------ */}
+        {!success && (
+          <>
+            <AlertDialogHeader className="items-center">
+              <div className="bg-yellow-500/10 mx-auto mb-2 flex size-12 items-center justify-center rounded-full">
+                <AlertTriangle className="text-yellow-600 size-6" />
+              </div>
+
+              <AlertDialogTitle>
+                ¿Marcar este correo como spam?
+              </AlertDialogTitle>
+
+              <AlertDialogDescription className="text-center">
+                El correo se moverá al estado <strong>Spam</strong>.
+                <p>Esta acción no se puede deshacer.</p>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={loading}>Cancelar</AlertDialogCancel>
+
+              <Button
+                disabled={loading}
+                onClick={handleSpam}
+                className="bg-yellow-600 hover:bg-yellow-700 text-white focus-visible:ring-yellow-600"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                    Procesando...
+                  </>
+                ) : (
+                  <>Sí, marcar como spam</>
+                )}
+              </Button>
+            </AlertDialogFooter>
+          </>
+        )}
+
+        {/* ------------------ ÉXITO ------------------ */}
+        {success && (
+          <div className="text-center py-6">
+            <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-full bg-yellow-500/10">
+              <ShieldAlert className="text-yellow-600 size-8" />
+            </div>
+
+            <h3 className="text-lg font-semibold">Correo marcado como spam</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              Redirigiendo al listado...
+            </p>
+          </div>
+        )}
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
