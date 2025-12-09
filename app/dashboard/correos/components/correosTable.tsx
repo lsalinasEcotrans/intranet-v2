@@ -68,13 +68,16 @@ type EstadoFilter =
   | "Pendiente"
   | "En proceso"
   | "Completado"
-  | "Espera de respuesta";
+  | "Espera de respuesta"
+  | "Respuesta de cliente";
 
 // ✅ Función de normalización fuera del componente
 const normalizeEstado = (estado: string): string => {
   if (estado === "1" || estado === "Pendiente") return "Pendiente";
+  if (estado === "2" || estado === "Completado") return "Completado";
   if (estado === "3" || estado === "En proceso") return "En proceso";
-  if (estado === "4" || estado === "Completado") return "Completado";
+  if (estado === "4" || estado === "Respondido X Cliente")
+    return "Respuesta de cliente";
   if (estado === "5" || estado === "Espera respuesta")
     return "Espera de respuesta";
   return estado;
@@ -132,7 +135,7 @@ export default function CorreosTable() {
     setLoading(true);
     fetchCorreos(); // primera carga
 
-    const interval = setInterval(fetchCorreos, 10000); // refrescar cada 5s
+    const interval = setInterval(fetchCorreos, 7000); // refrescar cada 5s
 
     return () => clearInterval(interval);
   }, []);
@@ -154,6 +157,7 @@ export default function CorreosTable() {
     let enProceso = 0;
     let completados = 0;
     let esperaRespuesta = 0;
+    let respuestaCliente = 0;
     let mios = 0;
 
     // Una sola iteración para calcular todos los contadores
@@ -162,10 +166,19 @@ export default function CorreosTable() {
       if (c.estadoNormalizado === "En proceso") enProceso++;
       if (c.estadoNormalizado === "Completado") completados++;
       if (c.estadoNormalizado === "Espera de respuesta") esperaRespuesta++;
+      if (c.estadoNormalizado === "Respuesta de cliente") respuestaCliente++;
       if (c.esMio) mios++;
     });
 
-    return { todos, pendientes, enProceso, completados, esperaRespuesta, mios };
+    return {
+      todos,
+      pendientes,
+      enProceso,
+      completados,
+      esperaRespuesta,
+      respuestaCliente,
+      mios,
+    };
   }, [correosNormalizados]);
 
   // ✅ Filtrar y ordenar correos (OPTIMIZADO)
@@ -281,6 +294,15 @@ export default function CorreosTable() {
             <Loader className="animate-spin" size={14} /> En proceso
           </Badge>
         );
+      case "Respuesta de cliente":
+        return (
+          <Badge
+            variant="outline"
+            className="gap-1 border-red-300 bg-red-50 text-blue-700"
+          >
+            <ClockFading size={14} /> Respuesta de cliente
+          </Badge>
+        );
       case "Espera de respuesta":
         return (
           <Badge
@@ -353,9 +375,17 @@ export default function CorreosTable() {
           >
             Espera de respuesta ({contadores.esperaRespuesta})
           </Badge>
+          <Badge
+            variant={
+              estadoFilter === "Respuesta de cliente" ? "default" : "outline"
+            }
+            className="cursor-pointer border-red-300 bg-red-50 text-red-700 hover:bg-red-100"
+            onClick={() => setEstadoFilter("Respuesta de cliente")}
+          >
+            Respuesta de cliente ({contadores.respuestaCliente})
+          </Badge>
 
           <div className="mx-2 h-6 w-px bg-border" />
-
           <Badge
             variant={showOnlyMine ? "default" : "outline"}
             className="cursor-pointer"
