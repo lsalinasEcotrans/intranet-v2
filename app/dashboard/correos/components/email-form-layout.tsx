@@ -1,23 +1,7 @@
 "use client";
-
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { ChevronLeft, ChevronRight, Maximize2 } from "lucide-react";
 import EmailViewer from "./email-viewer";
 import EmailModal from "./email-modal";
@@ -40,7 +24,6 @@ export default function EmailFormLayout({
   const [showEmail, setShowEmail] = useState(true);
   const [showFullscreen, setShowFullscreen] = useState(false);
   const [showFormModal, setShowFormModal] = useState(false);
-
   const { id } = useParams();
 
   return (
@@ -90,6 +73,7 @@ export default function EmailFormLayout({
                 variant="outline"
                 size="icon"
                 onClick={() => setShowFormModal(true)}
+                title="Abrir en pantalla completa"
               >
                 <Maximize2 className="w-4 h-4" />
               </Button>
@@ -104,10 +88,11 @@ export default function EmailFormLayout({
         onClose={() => setShowFullscreen(false)}
         emailData={emailData}
       />
+
       <FormModal
         isOpen={showFormModal}
         onClose={() => setShowFormModal(false)}
-        emailData={emailData}
+        emailData={{ ...emailData, id: id }}
       />
     </>
   );

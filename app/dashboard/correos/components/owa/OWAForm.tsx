@@ -11,15 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 
 import ConvenioField from "../fields/ConvenioField";
 import ConvenioDialog from "../fields/ConvenioDialog";
-
-import FechaField from "../fields/FechaField";
 import DireccionField from "../fields/DireccionField";
-
-interface ApiResponse {
-  content: string;
-  idCorreo: number;
-  mensaje_ia: string;
-}
+import FechaField from "../fields/FechaField";
 
 interface contentItem {
   accountIA: number | null;
@@ -49,6 +42,12 @@ interface MensajeIAItem {
   "Centro de Costo": string;
 }
 
+interface ApiResponse {
+  content: string;
+  idCorreo: number;
+  mensaje_ia: string;
+}
+
 export default function OWADetalle({ id }: { id: string }) {
   const [data, setData] = useState<MensajeIAItem[] | null>(null);
   const [content, setContent] = useState<contentItem | null>(null);
@@ -67,17 +66,10 @@ export default function OWADetalle({ id }: { id: string }) {
   const [previewJson, setPreviewJson] = useState<any | null>(null);
   const [nota, setNota] = useState("");
 
-  const [origen, setOrigen] = useState({
-    text: "",
-    latitud: 0,
-    longitud: 0,
-  });
+  const [origen, setOrigen] = useState({ text: "", latitud: 0, longitud: 0 });
+  const [destino, setDestino] = useState({ text: "", latitud: 0, longitud: 0 });
 
-  const [destino, setDestino] = useState({
-    text: "",
-    latitud: 0,
-    longitud: 0,
-  });
+  const [pickupDueTime, setPickupDueTime] = useState(""); // Fecha y hora editable
 
   // Traer datos de la API
   useEffect(() => {
@@ -95,8 +87,9 @@ export default function OWADetalle({ id }: { id: string }) {
         const parsedContent = JSON.parse(res.data.content);
         setContent(parsedContent);
 
-        // Inicializamos nota y convenio
         setNota(parsedArray[0]?.nota || "");
+        setPickupDueTime(parsedArray[0]?.pickupDueTime || "");
+
         const formattedConvenio = parsedContent.accountCode
           ? `${parsedContent.accountCode} - ${parsedContent.displayName}`
           : parsedContent.displayName;
@@ -109,7 +102,6 @@ export default function OWADetalle({ id }: { id: string }) {
         setLoading(false);
       }
     }
-
     fetchData();
   }, [id]);
 
@@ -128,7 +120,7 @@ export default function OWADetalle({ id }: { id: string }) {
   // Genera JSON al presionar guardar
   const handleGuardar = (item: MensajeIAItem) => {
     const json = {
-      pickupDueTime: item.pickupDueTime,
+      pickupDueTime: pickupDueTime,
       name: item.nombrePasajero,
       telephoneNumber: item.Telefono,
       displayName: selectedDisplayName || content?.displayName,
@@ -197,11 +189,11 @@ export default function OWADetalle({ id }: { id: string }) {
           {/* Datos del mensaje */}
           {data.map((item, index) => (
             <div key={index} className="space-y-4">
-              <FechaField value={item.pickupDueTime || ""} />
+              <FechaField value={pickupDueTime} onChange={setPickupDueTime} />
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">Pasajero</label>
-                <Input value={content?.displayName || ""} readOnly />
+                <Input value={item.nombrePasajero || ""} readOnly />
               </div>
 
               <div className="space-y-2">
