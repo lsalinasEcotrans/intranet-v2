@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,6 +20,7 @@ import {
   XCircle,
   Send,
 } from "lucide-react";
+import axios from "axios";
 
 /* =========================================================
    Tipos
@@ -32,6 +34,10 @@ type UserData = {
 };
 
 type SendStatus = "idle" | "sending" | "success" | "error";
+
+interface InformarButtonProps {
+  emailId: string;
+}
 
 /* =========================================================
    Utilidades
@@ -185,15 +191,13 @@ function buildBookingHTML(booking: any): string {
   <div style="background: linear-gradient(to right, #eff6ff, #e0e7ff); border: 2px solid #3b82f6; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
     <table width="100%" cellpadding="0" cellspacing="0" border="0">
       <tr>
-        <td style="vertical-align: top;">
+        <td colspan="2" style="vertical-align: top;">
           <p style="margin: 0 0 4px 0; font-size: 11px; color: #6b7280;">ID de Reserva</p>
           <p style="margin: 0; font-size: 20px; font-weight: bold; color: #111827;">#${
             booking.id
           }</p>
         </td>
-        <td style="text-align: right; vertical-align: top;">
-          ${getStatusBadge(booking.status)}
-        </td>
+        
       </tr>
     </table>
   </div>
@@ -263,48 +267,15 @@ function buildBookingHTML(booking: any): string {
       </tr>
     </table>
   </div>
-
-  <!-- Servicio y Pago -->
-  <div style="margin-bottom: 20px;">
-    <h3 style="font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 12px 0; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px;">
-      💳 Servicio y Pago
-    </h3>
-    <table width="100%" cellpadding="8" cellspacing="0" border="0">
-      <tr>
-        <td style="background-color: #f9fafb; border-radius: 6px; padding: 12px;">
-          <p style="margin: 0 0 4px 0; font-size: 11px; color: #6b7280;">Vehículo</p>
-          <p style="margin: 0; font-size: 14px; font-weight: 500; color: #111827;">${
-            booking.vehicle
-          }</p>
-        </td>
-      </tr>
-      <tr>
-        <td style="background-color: #f9fafb; border-radius: 6px; padding: 12px;">
-          <p style="margin: 0 0 4px 0; font-size: 11px; color: #6b7280;">Método de Pago</p>
-          <p style="margin: 0; font-size: 14px; font-weight: 500; color: #111827;">${
-            booking.paymentMethod
-          }</p>
-        </td>
-      </tr>
-      <tr>
-        <td style="background-color: #f9fafb; border-radius: 6px; padding: 12px;">
-          <p style="margin: 0 0 4px 0; font-size: 11px; color: #6b7280;">Precio Total</p>
-          <p style="margin: 0; font-size: 14px; font-weight: 500; color: #111827;">$${booking.price.toLocaleString(
-            "es-CL"
-          )}</p>
-        </td>
-      </tr>
-    </table>
-  </div>
 </div>
-<br><br>
 `;
 }
 
 /* =========================================================
    Componente
 ========================================================= */
-export default function InformarButton() {
+export function InformarButton({ emailId }: InformarButtonProps) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [booking, setBooking] = useState<any>(null);
@@ -314,6 +285,8 @@ export default function InformarButton() {
   const [sendError, setSendError] = useState<string | null>(null);
   const [editorLoading, setEditorLoading] = useState(true);
   const [user, setUser] = useState<UserData | null>(null);
+  const params = useParams();
+  const rowId = params?.id as string;
 
   // Cargar datos del usuario desde cookies
   useEffect(() => {
@@ -355,8 +328,8 @@ export default function InformarButton() {
 
   async function handleSend() {
     if (!editorContent.trim()) return;
-    if (!booking?.email) {
-      setSendError("No se encontró el email del cliente.");
+    if (!emailId) {
+      setSendError("No se recibió un ID válido para responder.");
       setSendStatus("error");
       return;
     }
@@ -365,27 +338,30 @@ export default function InformarButton() {
     setSendError(null);
 
     try {
-      // Enviar por correo usando la API de OWA
-      const res = await fetch("/api/owa", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          to: booking.email,
-          subject: `Confirmación de Reserva #${booking.id}`,
-          body: editorContent,
-        }),
+      // Enviar respuesta usando la API de OWA
+      const res = await axios.put("/api/owa", {
+        messageId: emailId,
+        replyBody: editorContent,
       });
 
-      if (!res.ok) throw new Error("Error al enviar el correo");
+      if (res.status !== 200) throw new Error("Error al enviar");
+
+      // Actualizar estado del correo en la base de datos
+      await axios.put(
+        `https://ecotrans-intranet-370980788525.europe-west1.run.app/headers/estado/${rowId}`,
+        {
+          estado: 3,
+        }
+      );
 
       setSendStatus("success");
 
-      // Cerrar después de éxito
+      // Redirigir después de mostrar el mensaje de éxito
       setTimeout(() => {
         setOpen(false);
-        setEditorContent("");
+        setEditorContent(user ? buildSignatureHTML(user) : "");
         setSendStatus("idle");
-        setBooking(null);
+        router.push("/dashboard/correos");
       }, 1500);
     } catch (err: any) {
       setSendStatus("error");
@@ -408,7 +384,8 @@ export default function InformarButton() {
 
   return (
     <>
-      <Button onClick={handleInformar} className="flex-1">
+      <Button className="flex-1" onClick={handleInformar}>
+        <Send className="h-4 w-4 mr-2" />
         Informar
       </Button>
 
@@ -455,7 +432,7 @@ export default function InformarButton() {
                         ¡Información enviada!
                       </h3>
                       <p className="text-muted-foreground">
-                        El cliente ha recibido los detalles de su reserva
+                        Redirigiendo a la bandeja de correos...
                       </p>
                     </div>
                   </>
@@ -562,10 +539,7 @@ export default function InformarButton() {
                   Enviando...
                 </>
               ) : (
-                <>
-                  <Send className="h-4 w-4 mr-2" />
-                  Enviar al Cliente
-                </>
+                "Enviar respuesta"
               )}
             </Button>
           </DialogFooter>

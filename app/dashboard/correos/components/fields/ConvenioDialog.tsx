@@ -17,7 +17,16 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2 } from "lucide-react";
+import { Loader2, SearchCheck, Search } from "lucide-react";
+
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+  InputGroupText,
+  InputGroupTextarea,
+} from "@/components/ui/input-group";
 
 interface Customer {
   id: number;
@@ -76,19 +85,24 @@ export default function ConvenioDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="min-w-[50vw] max-w-[60vw] p-6 to-card bg-gradient-to-b from-green-100 to-40% [background-size:100%_101%] sm:max-w-sm dark:from-green-900">
+      <DialogContent className="min-w-[60vw] max-w-[70vw] p-6 to-card bg-gradient-to-b from-green-100 to-40% [background-size:100%_101%] sm:max-w-sm dark:from-green-900">
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold">
             Seleccionar Convenio
           </DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4">
-          <Input
-            placeholder="Buscar convenio..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            disabled={loading}
-          />
+          <InputGroup className="bg-white">
+            <InputGroupInput
+              placeholder="Buscar convenio..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              disabled={loading}
+            />
+            <InputGroupAddon>
+              <Search />
+            </InputGroupAddon>
+          </InputGroup>
 
           {loading ? (
             <div className="space-y-4">
@@ -103,7 +117,7 @@ export default function ConvenioDialog({
             <div className="max-h-80 overflow-y-auto overflow-x-auto border rounded-lg">
               <Table className="min-w-[800px]">
                 <TableHeader>
-                  <TableRow className="bg-gray-50">
+                  <TableRow className="bg-gray-200">
                     <TableHead>Account Code</TableHead>
                     <TableHead>Display Name</TableHead>
                     <TableHead>Acción</TableHead>
@@ -129,7 +143,6 @@ export default function ConvenioDialog({
 
                         <TableCell>
                           <Button
-                            className="h-7 px-2 py-1 text-xs"
                             onClick={() => {
                               onSelect(
                                 customer.accountCode,
@@ -137,8 +150,9 @@ export default function ConvenioDialog({
                               );
                               onOpenChange(false);
                             }}
+                            size="icon-lg"
                           >
-                            Seleccionar
+                            <SearchCheck />
                           </Button>
                         </TableCell>
                       </TableRow>

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import axios from "axios";
 
 /* =========================================================================
    🔧 VARIABLES DE ENTORNO NECESARIAS PARA MICROSOFT GRAPH
@@ -6,14 +7,14 @@ import { NextRequest, NextResponse } from "next/server";
 const tenantId = process.env.TENANT_ID!;
 const clientId = process.env.CLIENT_ID!;
 const clientSecret = process.env.CLIENT_SECRET!;
-const userEmail = process.env.USER_EMAIL!; // buzón desde donde se leen correos
+const userEmail = process.env.USER_EMAIL!;
 
 if (!tenantId || !clientId || !clientSecret || !userEmail) {
   console.warn("⚠️ Faltan variables de entorno para Graph API");
 }
 
 /* =========================================================================
-   🔐 FUNCIÓN: Obtener token OAuth2 con client_credentials
+   🔐 FUNCIÓN: Obtener token OAuth2 con client_credentials (Axios)
    ========================================================================= */
 async function getAccessToken(): Promise<string> {
   const url = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
@@ -25,39 +26,41 @@ async function getAccessToken(): Promise<string> {
     grant_type: "client_credentials",
   });
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: body.toString(),
-  });
+  try {
+    const response = await axios.post(url, body.toString(), {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+    });
 
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`Token request failed ${res.status} - ${txt}`);
+    return response.data.access_token;
+  } catch (err: any) {
+    throw new Error(
+      `Token request failed: ${err.response?.status} - ${err.response?.data}`
+    );
   }
-
-  const data = await res.json();
-  return data.access_token;
 }
 
 /* =========================================================================
-   📬 FUNCIÓN: Obtener un mensaje por su ID
+   📬 FUNCIÓN: Obtener mensaje por ID
    ========================================================================= */
 async function getMessageById(accessToken: string, messageId: string) {
   const url = `https://graph.microsoft.com/v1.0/users/${userEmail}/messages/${messageId}`;
 
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  try {
+    const res = await axios.get(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
 
-  if (res.status === 404) return null;
-
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`Graph error ${res.status} - ${txt}`);
+    return res.data;
+  } catch (err: any) {
+    if (err.response?.status === 404) return null;
+    throw new Error(
+      `Graph error ${err.response?.status} - ${JSON.stringify(
+        err.response?.data
+      )}`
+    );
   }
-
-  return await res.json();
 }
 
 /* =========================================================================
@@ -72,40 +75,42 @@ async function getMessagesByConversation(
     `?$filter=conversationId eq '${conversationId}'` +
     `&$orderby=sentDateTime asc`;
 
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  try {
+    const res = await axios.get(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
 
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`Error buscando conversación ${res.status} - ${txt}`);
+    return res.data.value || [];
+  } catch (err: any) {
+    throw new Error(
+      `Error buscando conversación ${err.response?.status} - ${JSON.stringify(
+        err.response?.data
+      )}`
+    );
   }
-
-  const data = await res.json();
-  return data.value || [];
 }
 
 /* =========================================================================
-   📎 FUNCIÓN: Obtener adjuntos del mensaje
+   📎 FUNCIÓN: Adjuntos
    ========================================================================= */
 async function getAttachments(accessToken: string, messageId: string) {
   const url = `https://graph.microsoft.com/v1.0/users/${userEmail}/messages/${messageId}/attachments`;
 
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  try {
+    const res = await axios.get(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
 
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`Error obteniendo adjuntos: ${txt}`);
+    return res.data.value || [];
+  } catch (err: any) {
+    throw new Error(
+      `Error obteniendo adjuntos: ${JSON.stringify(err.response?.data)}`
+    );
   }
-
-  const data = await res.json();
-  return data.value || [];
 }
 
 /* =========================================================================
-   🖼 FUNCIÓN: Insertar imágenes inline (cid:) dentro del HTML
+   🖼 Insertar imágenes inline (cid:)
    ========================================================================= */
 function embedInlineImages(bodyHtml: string, attachments: any[]) {
   let updated = bodyHtml;
@@ -122,7 +127,7 @@ function embedInlineImages(bodyHtml: string, attachments: any[]) {
 }
 
 /* =========================================================================
-   📥 POST: Obtiene correo por ID o por conversationId
+   📥 POST: Obtener correo o conversación
    ========================================================================= */
 export async function POST(req: NextRequest) {
   try {
@@ -137,17 +142,13 @@ export async function POST(req: NextRequest) {
 
     const token = await getAccessToken();
 
-    /* -----------------------------------------------------------
-       🔍 1️⃣ Si enviaron conversationId → devolver todos los correos
-       ----------------------------------------------------------- */
+    // 1️⃣ Buscar por conversationId
     if (conversationId) {
       const mensajes = await getMessagesByConversation(token, conversationId);
       return NextResponse.json({ conversationId, mensajes });
     }
 
-    /* -----------------------------------------------------------
-       ✉️ 2️⃣ Si enviaron messageId → traer correo con adjuntos
-       ----------------------------------------------------------- */
+    // 2️⃣ Buscar mensaje específico + adjuntos
     const [message, attachments] = await Promise.all([
       getMessageById(token, messageId),
       getAttachments(token, messageId),
@@ -160,13 +161,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Embeder imágenes inline
+    // Incrustar imágenes inline
     message.body.content = embedInlineImages(
       message.body.content || "",
       attachments
     );
 
-    // Adjuntos descargables
+    // Formatear adjuntos descargables
     message.attachments = attachments
       .filter((a: any) => !a.isInline && a.contentBytes)
       .map((a: any) => ({
@@ -187,7 +188,7 @@ export async function POST(req: NextRequest) {
 }
 
 /* =========================================================================
-   📤 PUT: Crear reply, rellenar HTML y enviarlo
+   📤 PUT: Crear reply y enviarlo (Axios)
    ========================================================================= */
 export async function PUT(req: NextRequest) {
   try {
@@ -198,62 +199,52 @@ export async function PUT(req: NextRequest) {
     }
 
     const token = await getAccessToken();
+    const headers = { Authorization: `Bearer ${token}` };
 
-    // 1️⃣ Crear borrador de respuesta
-    const draftRes = await fetch(
+    // 1️⃣ Crear borrador
+    const draftRes = await axios.post(
       `https://graph.microsoft.com/v1.0/users/${userEmail}/messages/${messageId}/createReply`,
-      {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      }
+      {},
+      { headers }
     );
 
-    if (!draftRes.ok) throw new Error(await draftRes.text());
-    const draft = await draftRes.json();
+    const draft = draftRes.data;
 
-    // 2️⃣ Obtener el borrador completo (contiene el email original)
-    const draftFull = await fetch(
-      `https://graph.microsoft.com/v1.0/users/${userEmail}/messages/${draft.id}`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    ).then((r) => r.json());
+    // 2️⃣ Obtener borrador completo
+    const draftFull = await axios
+      .get(
+        `https://graph.microsoft.com/v1.0/users/${userEmail}/messages/${draft.id}`,
+        { headers }
+      )
+      .then((r) => r.data);
 
     const originalHtml = draftFull.body?.content || "";
 
-    // 3️⃣ Combinar tu respuesta + historial del correo
+    // 3️⃣ Combinar HTML nuevo + historial
     const finalHtml = `
       <div>${replyBody}</div>
-      <br/><hr/>correodeecotrans
       ${originalHtml}
     `;
 
-    // 4️⃣ Actualizar el borrador con el HTML final
-    const patchRes = await fetch(
+    // 4️⃣ PATCH: actualizar borrador
+    await axios.patch(
       `https://graph.microsoft.com/v1.0/users/${userEmail}/messages/${draft.id}`,
       {
-        method: "PATCH",
+        body: { contentType: "HTML", content: finalHtml },
+      },
+      {
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...headers,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          body: { contentType: "HTML", content: finalHtml },
-        }),
       }
     );
 
-    if (!patchRes.ok) {
-      throw new Error(await patchRes.text());
-    }
-
-    // 5️⃣ Enviar el correo
-    await fetch(
+    // 5️⃣ Enviar email
+    await axios.post(
       `https://graph.microsoft.com/v1.0/users/${userEmail}/messages/${draft.id}/send`,
-      {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      }
+      {},
+      { headers }
     );
 
     return NextResponse.json({ success: true });

@@ -18,7 +18,7 @@ export default function ConvenioField({
       <Label>Convenio:</Label>
       <div className="flex rounded-md shadow-xs">
         <Input
-          value={value}
+          value={value ?? ""}
           readOnly
           placeholder="Convenio"
           className="-me-px rounded-r-none shadow-none focus-visible:z-1 bg-muted"

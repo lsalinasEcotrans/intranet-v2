@@ -1,89 +1,112 @@
 // app/api/auth/login/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import axios from "axios";
 
-const PROTOCOL = process.env.NEXT_PUBLIC_PROTOCOL || "https";
-const ENDPOINT = process.env.NEXT_PUBLIC_ENDPOINT || "your-endpoint";
-const PORT = process.env.NEXT_PUBLIC_PORT || "443";
 const VALIDATE_API =
   "https://ecotrans-intranet-370980788525.europe-west1.run.app/validate";
 
+// 🔍 Sanitizador simple (evita caracteres raros / inyección)
+function sanitize(text: string) {
+  return text.replace(/[<>"'`;]/g, "").trim();
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const { username, password } = await request.json();
+    const body = await request.json().catch(() => null);
 
-    if (!username || !password) {
+    if (!body || typeof body !== "object") {
       return NextResponse.json(
-        { error: "Usuario y contraseña son requeridos" },
+        { error: "Solicitud inválida" },
         { status: 400 }
       );
     }
 
-    // Primera API: Autenticación
-    const authUrl = `https://ghost-main-static-b7ec98c880a54ad5a4782393902a32a2.ghostapi.app:29003/api/v1/authenticate`;
-    const authResponse = await fetch(authUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ username, password }),
-    });
+    let { username, password } = body;
 
-    if (!authResponse.ok) {
-      const errorText = await authResponse.text();
+    if (typeof username !== "string" || typeof password !== "string") {
       return NextResponse.json(
         { error: "Credenciales inválidas" },
+        { status: 400 }
+      );
+    }
+
+    // Sanitiza inputs
+    username = sanitize(username);
+    password = sanitize(password);
+
+    if (!username || !password) {
+      return NextResponse.json(
+        { error: "Credenciales requeridas" },
+        { status: 400 }
+      );
+    }
+
+    // ---------------------------------------------------
+    // 1) AUTENTICACIÓN (Axios)
+    // ---------------------------------------------------
+    const authUrl =
+      "https://ghost-main-static-b7ec98c880a54ad5a4782393902a32a2.ghostapi.app:29003/api/v1/authenticate";
+
+    let authData;
+    try {
+      const authResponse = await axios.post(authUrl, {
+        username,
+        password,
+      });
+      authData = authResponse.data;
+    } catch {
+      // 🔒 seguridad: no revelamos si fue user o pass
+      return NextResponse.json(
+        { error: "Credenciales incorrectas" },
         { status: 401 }
       );
     }
 
-    const authData = await authResponse.json();
-
-    if (!authData.secret || !authData.user) {
+    if (!authData.secret || !authData.user?.name) {
       return NextResponse.json(
-        { error: "Respuesta de autenticación inválida" },
-        { status: 500 }
+        { error: "Autenticación fallida" },
+        { status: 401 }
       );
     }
 
-    // Segunda API: Validación de usuario
-    const validateUrl = `${VALIDATE_API}/${authData.user.name}`;
-    const validateResponse = await fetch(validateUrl, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    // ---------------------------------------------------
+    // 2) VALIDACIÓN EN SISTEMA INTERNO
+    // ---------------------------------------------------
+    const validatedUserName = sanitize(authData.user.name);
 
-    if (!validateResponse.ok) {
+    let userData;
+    try {
+      const validateRes = await axios.get(
+        `${VALIDATE_API}/${validatedUserName}`
+      );
+      userData = validateRes.data;
+    } catch {
       return NextResponse.json(
-        { error: "Usuario no autorizado en el sistema" },
+        { error: "Acceso no autorizado" },
         { status: 403 }
       );
     }
 
-    const userData = await validateResponse.json();
-
-    if (!userData.id || !userData.username) {
-      return NextResponse.json(
-        { error: "Datos de usuario inválidos" },
-        { status: 500 }
-      );
+    if (!userData?.id || !userData?.username) {
+      return NextResponse.json({ error: "Usuario no válido" }, { status: 403 });
     }
 
-    // Configurar cookies seguras
+    // ---------------------------------------------------
+    // 3) SET COOKIES SEGURAS
+    // ---------------------------------------------------
     const cookieStore = await cookies();
 
-    // Cookie para el token (HTTP-only, secure)
+    // Token secreto (solo servidor)
     cookieStore.set("auth_token", authData.secret, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: true,
       sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 días
       path: "/",
+      maxAge: 60 * 60 * 24 * 7,
     });
 
-    // Cookie para datos de usuario (puede ser leída por el cliente)
+    // User público (solo información segura, no sensible)
     cookieStore.set(
       "user_data",
       JSON.stringify({
@@ -91,25 +114,31 @@ export async function POST(request: NextRequest) {
         username: userData.username,
         fullName: userData.full_name,
         role: userData.role_name,
+        cargo: userData.cargo,
+        departamento: userData.departamento,
+        nexterno: userData.nexterno,
       }),
       {
         httpOnly: false,
-        secure: process.env.NODE_ENV === "production",
+        secure: true,
         sameSite: "lax",
-        maxAge: 60 * 60 * 24 * 7,
         path: "/",
+        maxAge: 60 * 60 * 24 * 7,
       }
     );
 
-    // Cookie para el menú
+    // Menú
     cookieStore.set("user_menu", JSON.stringify(userData.json_menu), {
       httpOnly: false,
-      secure: process.env.NODE_ENV === "production",
+      secure: true,
       sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7,
       path: "/",
+      maxAge: 60 * 60 * 24 * 7,
     });
 
+    // ---------------------------------------------------
+    // OK
+    // ---------------------------------------------------
     return NextResponse.json({
       success: true,
       user: {
@@ -122,9 +151,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Error en login:", error);
-    return NextResponse.json(
-      { error: "Error interno del servidor" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }
 }
