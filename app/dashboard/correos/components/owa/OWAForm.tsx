@@ -308,7 +308,7 @@ export default function OWAForm({ emailData }: OWAFormProps) {
                 </Button>
 
                 {/* 👇 AQUÍ está la clave */}
-                <InformarButton emailId={emailData?.id} rowId={""} />
+                <InformarButton emailId={emailData?.id} />
               </div>
             </>
           ) : (

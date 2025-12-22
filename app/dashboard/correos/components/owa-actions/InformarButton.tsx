@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -37,7 +37,6 @@ type SendStatus = "idle" | "sending" | "success" | "error";
 
 interface InformarButtonProps {
   emailId: string;
-  rowId: string;
 }
 
 /* =========================================================
@@ -192,15 +191,13 @@ function buildBookingHTML(booking: any): string {
   <div style="background: linear-gradient(to right, #eff6ff, #e0e7ff); border: 2px solid #3b82f6; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
     <table width="100%" cellpadding="0" cellspacing="0" border="0">
       <tr>
-        <td style="vertical-align: top;">
+        <td colspan="2" style="vertical-align: top;">
           <p style="margin: 0 0 4px 0; font-size: 11px; color: #6b7280;">ID de Reserva</p>
           <p style="margin: 0; font-size: 20px; font-weight: bold; color: #111827;">#${
             booking.id
           }</p>
         </td>
-        <td style="text-align: right; vertical-align: top;">
-          ${getStatusBadge(booking.status)}
-        </td>
+        
       </tr>
     </table>
   </div>
@@ -270,48 +267,14 @@ function buildBookingHTML(booking: any): string {
       </tr>
     </table>
   </div>
-
-  <!-- Servicio y Pago -->
-  <div style="margin-bottom: 20px;">
-    <h3 style="font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 12px 0; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px;">
-      💳 Servicio y Pago
-    </h3>
-    <table width="100%" cellpadding="8" cellspacing="0" border="0">
-      <tr>
-        <td style="background-color: #f9fafb; border-radius: 6px; padding: 12px;">
-          <p style="margin: 0 0 4px 0; font-size: 11px; color: #6b7280;">Vehículo</p>
-          <p style="margin: 0; font-size: 14px; font-weight: 500; color: #111827;">${
-            booking.vehicle
-          }</p>
-        </td>
-      </tr>
-      <tr>
-        <td style="background-color: #f9fafb; border-radius: 6px; padding: 12px;">
-          <p style="margin: 0 0 4px 0; font-size: 11px; color: #6b7280;">Método de Pago</p>
-          <p style="margin: 0; font-size: 14px; font-weight: 500; color: #111827;">${
-            booking.paymentMethod
-          }</p>
-        </td>
-      </tr>
-      <tr>
-        <td style="background-color: #f9fafb; border-radius: 6px; padding: 12px;">
-          <p style="margin: 0 0 4px 0; font-size: 11px; color: #6b7280;">Precio Total</p>
-          <p style="margin: 0; font-size: 14px; font-weight: 500; color: #111827;">$${booking.price.toLocaleString(
-            "es-CL"
-          )}</p>
-        </td>
-      </tr>
-    </table>
-  </div>
 </div>
-<br><br>
 `;
 }
 
 /* =========================================================
    Componente
 ========================================================= */
-export function InformarButton({ emailId, rowId }: InformarButtonProps) {
+export function InformarButton({ emailId }: InformarButtonProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -322,6 +285,8 @@ export function InformarButton({ emailId, rowId }: InformarButtonProps) {
   const [sendError, setSendError] = useState<string | null>(null);
   const [editorLoading, setEditorLoading] = useState(true);
   const [user, setUser] = useState<UserData | null>(null);
+  const params = useParams();
+  const rowId = params?.id as string;
 
   // Cargar datos del usuario desde cookies
   useEffect(() => {
@@ -385,7 +350,7 @@ export function InformarButton({ emailId, rowId }: InformarButtonProps) {
       await axios.put(
         `https://ecotrans-intranet-370980788525.europe-west1.run.app/headers/estado/${rowId}`,
         {
-          estado: 5,
+          estado: 3,
         }
       );
 
@@ -419,7 +384,7 @@ export function InformarButton({ emailId, rowId }: InformarButtonProps) {
 
   return (
     <>
-      <Button variant="outline" onClick={handleInformar}>
+      <Button className="flex-1" onClick={handleInformar}>
         <Send className="h-4 w-4 mr-2" />
         Informar
       </Button>

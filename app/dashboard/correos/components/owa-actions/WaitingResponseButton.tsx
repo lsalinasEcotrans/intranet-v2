@@ -66,7 +66,7 @@ export function PendingButton({ emailId, onNoInform }: SpamButtonProps) {
               <AlertDialogDescription className="text-center">
                 Este correo quedará en estado{" "}
                 <strong>Pendiente de confirmación</strong>.
-                <p>No podrás revertir esta acción.</p>
+                <div>No podrás revertir esta acción.</div>
               </AlertDialogDescription>
             </AlertDialogHeader>
 

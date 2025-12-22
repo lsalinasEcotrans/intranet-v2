@@ -67,7 +67,7 @@ export function SpamButton({ emailId, onNoInform }: SpamButtonProps) {
 
               <AlertDialogDescription className="text-center">
                 El correo se moverá al estado <strong>Spam</strong>.
-                <p>Esta acción no se puede deshacer.</p>
+                <div>Esta acción no se puede deshacer.</div>
               </AlertDialogDescription>
             </AlertDialogHeader>
 
