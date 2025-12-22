@@ -1,0 +1,50 @@
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose.yml
+
+# Dependencias
+node_modules
+vendor
+packages
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv
+venv/
+
+# Logs
+logs
+*.log
+
+# Build / dist
+dist
+build
+out
+target
+
+# IDEs y SO
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Tests y docs
+test
+tests
+docs
+coverage
+
+# Archivos temporales
+tmp
+temp
+*.tmp
