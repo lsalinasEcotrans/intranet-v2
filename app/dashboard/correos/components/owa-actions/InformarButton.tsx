@@ -350,7 +350,7 @@ export function InformarButton({ emailId }: InformarButtonProps) {
       await axios.put(
         `https://ecotrans-intranet-370980788525.europe-west1.run.app/headers/estado/${rowId}`,
         {
-          estado: 3,
+          estado: 2,
         }
       );
 

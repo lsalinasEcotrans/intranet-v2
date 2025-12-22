@@ -7,6 +7,7 @@ import axios from "axios";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -23,7 +24,6 @@ import DireccionField from "../fields/DireccionField";
 import FechaField from "../fields/FechaField";
 
 import { InformarButton } from "../owa-actions/InformarButton";
-
 import { Loader2 } from "lucide-react";
 
 /* =======================
@@ -43,7 +43,6 @@ function toChileISOString(dateString: string) {
     .includes("GMT-3");
 
   const offset = isSummerTime ? "-03:00" : "-04:00";
-
   return `${year}-${month}-${day}T${hour}:${minute}:00${offset}`;
 }
 
@@ -85,19 +84,10 @@ interface ApiResponse {
 }
 
 /* =======================
-   PROPS
-======================= */
-
-interface OWAFormProps {
-  rowId: string; // ID interno (BD)
-  emailData?: any; // ID real de Microsoft Graph
-}
-
-/* =======================
    Component
 ======================= */
 
-export default function OWAForm({ emailData }: OWAFormProps) {
+export default function OWAForm({ emailData }: { emailData?: any }) {
   const params = useParams<{ id: string }>();
   const rowId = params.id;
 
@@ -122,11 +112,7 @@ export default function OWAForm({ emailData }: OWAFormProps) {
   const [saving, setSaving] = useState(false);
   const [showResultDialog, setShowResultDialog] = useState(false);
   const [isProcessingNoInform, setIsProcessingNoInform] = useState(false);
-
   const [bookingNumber, setBookingNumber] = useState<string | null>(null);
-
-  // ✅ Console log del emailId
-  console.log("ReplyButton emailId FormRESERVA:", emailData?.id);
 
   /* =======================
      Fetch inicial
@@ -148,7 +134,6 @@ export default function OWAForm({ emailData }: OWAFormProps) {
         setPickupDueTime(parsedArray[0]?.pickupDueTime ?? "");
 
         const parsedContent = JSON.parse(res.data.content);
-
         setSelectedAccountCode(parsedContent?.accountCode ?? null);
         setSelectedDisplayName(parsedContent?.displayName ?? null);
 
@@ -168,58 +153,67 @@ export default function OWAForm({ emailData }: OWAFormProps) {
   }, [rowId]);
 
   /* =======================
-     Guardar / Booking
+     Helpers edición
+  ======================= */
+
+  function updateItem(index: number, field: keyof MensajeIAItem, value: any) {
+    setData((prev) =>
+      prev
+        ? prev.map((item, i) =>
+            i === index ? { ...item, [field]: value } : item
+          )
+        : prev
+    );
+  }
+
+  /* =======================
+     Guardar
   ======================= */
 
   const handleGuardar = async (item: MensajeIAItem) => {
     setSaving(true);
 
-    const json = {
-      companyId: 1,
-      paymentType: "Account",
-      pickupDueTime: toChileISOString(pickupDueTime),
-      name: item.nombrePasajero ?? "",
-      passengers: 1,
-      telephoneNumber: item.Telefono ?? "",
-      customerId: 144,
-      accountType: "Account",
-      displayName: selectedDisplayName,
-      accountCode: selectedAccountCode,
-      driverNote: nota,
-      officeNote: "SERV. POR SISTEMA OWA",
-      priority: 5,
-      pickup: {
-        address: {
-          text: origen.text || item.pickup.text,
-          coordinate: {
-            latitude: origen.latitud || item.pickup.latitud,
-            longitude: origen.longitud || item.pickup.longitud,
-          },
-        },
-        type: "Pickup",
-      },
-      destination: {
-        address: {
-          text: destino.text || item.destination.text,
-          coordinate: {
-            latitude: destino.latitud || item.destination.latitud,
-            longitude: destino.longitud || item.destination.longitud,
-          },
-        },
-        type: "Destination",
-      },
-      hold: true,
-    };
-
     try {
-      await axios.post("/api/ghost/bookings/create", json);
+      await axios.post("/api/ghost/bookings/create", {
+        companyId: 1,
+        paymentType: "Account",
+        pickupDueTime: toChileISOString(pickupDueTime),
+        name: item.nombrePasajero ?? "",
+        passengers: 1,
+        telephoneNumber: item.Telefono ?? "",
+        customerId: 144,
+        accountType: "Account",
+        displayName: selectedDisplayName,
+        accountCode: selectedAccountCode,
+        driverNote: nota,
+        officeNote: "SERV. POR SISTEMA OWA",
+        priority: 5,
+        pickup: {
+          address: {
+            text: origen.text || item.pickup.text,
+            coordinate: {
+              latitude: origen.latitud || item.pickup.latitud,
+              longitude: origen.longitud || item.pickup.longitud,
+            },
+          },
+          type: "Pickup",
+        },
+        destination: {
+          address: {
+            text: destino.text || item.destination.text,
+            coordinate: {
+              latitude: destino.latitud || item.destination.latitud,
+              longitude: destino.longitud || item.destination.longitud,
+            },
+          },
+          type: "Destination",
+        },
+        hold: true,
+      });
 
-      const booking = getCookie("bookingNumber");
-      setBookingNumber(booking);
-
+      setBookingNumber(getCookie("bookingNumber"));
       setShowResultDialog(true);
-    } catch (err) {
-      console.error(err);
+    } catch {
       alert("Error al crear la reserva");
     } finally {
       setSaving(false);
@@ -227,102 +221,15 @@ export default function OWAForm({ emailData }: OWAFormProps) {
   };
 
   /* =======================
-     Acciones Dialog
-  ======================= */
-
-  async function handleNoInformar() {
-    if (isProcessingNoInform) return;
-
-    setIsProcessingNoInform(true);
-
-    try {
-      await axios.put(
-        `https://ecotrans-intranet-370980788525.europe-west1.run.app/headers/estado/${rowId}`,
-        { estado: 2 }
-      );
-
-      await new Promise((r) => setTimeout(r, 1500));
-    } catch (error) {
-      console.error("Error actualizando estado:", error);
-    } finally {
-      clearBookingCookie();
-      window.location.href = "/dashboard/correos";
-    }
-  }
-
-  /* =======================
      Render
   ======================= */
 
-  if (loading) {
-    return (
-      <div className="p-8 space-y-4">
-        <Skeleton className="h-6 w-40" />
-        <Skeleton className="h-6 w-72" />
-        <Skeleton className="h-6 w-56" />
-      </div>
-    );
-  }
-
+  if (loading) return <Skeleton className="h-40 w-full" />;
   if (error) return <p className="text-red-500">{error}</p>;
   if (!data) return null;
 
   return (
     <div className="py-2 space-y-4">
-      <Dialog open={showResultDialog}>
-        <DialogContent
-          onInteractOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
-          className="sm:max-w-md"
-        >
-          {!isProcessingNoInform ? (
-            <>
-              <DialogHeader>
-                <DialogTitle>Reserva creada correctamente</DialogTitle>
-              </DialogHeader>
-
-              {bookingNumber && (
-                <div className="flex justify-center py-4">
-                  <div className="w-full rounded-lg border bg-muted/40 p-6 text-center">
-                    <p className="text-sm text-muted-foreground mb-2">
-                      Número de reserva
-                    </p>
-                    <p className="text-3xl font-bold tracking-wider">
-                      {bookingNumber}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              <p className="text-sm text-muted-foreground text-center">
-                ¿Deseas informar esta reserva al cliente?
-              </p>
-
-              <div className="flex gap-3 pt-4">
-                <Button
-                  className="flex-1"
-                  variant="destructive"
-                  onClick={handleNoInformar}
-                >
-                  No informar
-                </Button>
-
-                {/* 👇 AQUÍ está la clave */}
-                <InformarButton emailId={emailData?.id} />
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center gap-4 py-8 text-center">
-              <Loader2 className="h-14 w-14 animate-spin text-primary" />
-              <h3 className="text-lg font-semibold">Completando reserva</h3>
-              <p className="text-sm text-muted-foreground">
-                Volviendo a la lista de correos…
-              </p>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
       <Card>
         <CardContent className="space-y-6">
           <ConvenioField
@@ -344,9 +251,35 @@ export default function OWAForm({ emailData }: OWAFormProps) {
             <div key={index} className="space-y-4">
               <FechaField value={pickupDueTime} onChange={setPickupDueTime} />
 
-              <Input value={item.nombrePasajero ?? ""} readOnly />
-              <Input value={item.Telefono ?? ""} readOnly />
-              <Input value={item["Centro de Costo"] ?? ""} readOnly />
+              <div className="grid gap-3">
+                <Label>Pasajero</Label>
+                <Input
+                  value={item.nombrePasajero ?? ""}
+                  onChange={(e) =>
+                    updateItem(index, "nombrePasajero", e.target.value)
+                  }
+                />
+              </div>
+
+              <div className="grid gap-3">
+                <Label>Teléfono</Label>
+                <Input
+                  value={item.Telefono ?? ""}
+                  onChange={(e) =>
+                    updateItem(index, "Telefono", e.target.value)
+                  }
+                />
+              </div>
+
+              <div className="grid gap-3">
+                <Label>Centro de costo</Label>
+                <Input
+                  value={item["Centro de Costo"] ?? ""}
+                  onChange={(e) =>
+                    updateItem(index, "Centro de Costo", e.target.value)
+                  }
+                />
+              </div>
 
               <DireccionField
                 label="Origen"
@@ -364,10 +297,13 @@ export default function OWAForm({ emailData }: OWAFormProps) {
                 }
               />
 
-              <Textarea
-                value={nota}
-                onChange={(e) => setNota(e.target.value)}
-              />
+              <div className="grid gap-3">
+                <Label>Nota al Conductor</Label>
+                <Textarea
+                  value={nota}
+                  onChange={(e) => setNota(e.target.value)}
+                />
+              </div>
             </div>
           ))}
 
