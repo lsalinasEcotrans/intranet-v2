@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,6 +20,7 @@ import {
   XCircle,
   Send,
 } from "lucide-react";
+import axios from "axios";
 
 /* =========================================================
    Tipos
@@ -32,6 +34,11 @@ type UserData = {
 };
 
 type SendStatus = "idle" | "sending" | "success" | "error";
+
+interface InformarButtonProps {
+  emailId: string;
+  rowId: string;
+}
 
 /* =========================================================
    Utilidades
@@ -304,7 +311,8 @@ function buildBookingHTML(booking: any): string {
 /* =========================================================
    Componente
 ========================================================= */
-export default function InformarButton() {
+export function InformarButton({ emailId, rowId }: InformarButtonProps) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [booking, setBooking] = useState<any>(null);
@@ -355,8 +363,8 @@ export default function InformarButton() {
 
   async function handleSend() {
     if (!editorContent.trim()) return;
-    if (!booking?.email) {
-      setSendError("No se encontró el email del cliente.");
+    if (!emailId) {
+      setSendError("No se recibió un ID válido para responder.");
       setSendStatus("error");
       return;
     }
@@ -365,27 +373,30 @@ export default function InformarButton() {
     setSendError(null);
 
     try {
-      // Enviar por correo usando la API de OWA
-      const res = await fetch("/api/owa", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          to: booking.email,
-          subject: `Confirmación de Reserva #${booking.id}`,
-          body: editorContent,
-        }),
+      // Enviar respuesta usando la API de OWA
+      const res = await axios.put("/api/owa", {
+        messageId: emailId,
+        replyBody: editorContent,
       });
 
-      if (!res.ok) throw new Error("Error al enviar el correo");
+      if (res.status !== 200) throw new Error("Error al enviar");
+
+      // Actualizar estado del correo en la base de datos
+      await axios.put(
+        `https://ecotrans-intranet-370980788525.europe-west1.run.app/headers/estado/${rowId}`,
+        {
+          estado: 5,
+        }
+      );
 
       setSendStatus("success");
 
-      // Cerrar después de éxito
+      // Redirigir después de mostrar el mensaje de éxito
       setTimeout(() => {
         setOpen(false);
-        setEditorContent("");
+        setEditorContent(user ? buildSignatureHTML(user) : "");
         setSendStatus("idle");
-        setBooking(null);
+        router.push("/dashboard/correos");
       }, 1500);
     } catch (err: any) {
       setSendStatus("error");
@@ -408,7 +419,8 @@ export default function InformarButton() {
 
   return (
     <>
-      <Button onClick={handleInformar} className="flex-1">
+      <Button variant="outline" onClick={handleInformar}>
+        <Send className="h-4 w-4 mr-2" />
         Informar
       </Button>
 
@@ -455,7 +467,7 @@ export default function InformarButton() {
                         ¡Información enviada!
                       </h3>
                       <p className="text-muted-foreground">
-                        El cliente ha recibido los detalles de su reserva
+                        Redirigiendo a la bandeja de correos...
                       </p>
                     </div>
                   </>
@@ -562,10 +574,7 @@ export default function InformarButton() {
                   Enviando...
                 </>
               ) : (
-                <>
-                  <Send className="h-4 w-4 mr-2" />
-                  Enviar al Cliente
-                </>
+                "Enviar respuesta"
               )}
             </Button>
           </DialogFooter>

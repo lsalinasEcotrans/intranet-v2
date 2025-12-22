@@ -1,56 +1,107 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import axios from "axios";
-import { Skeleton } from "@/components/ui/skeleton";
 
+import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 import ConvenioField from "../fields/ConvenioField";
 import ConvenioDialog from "../fields/ConvenioDialog";
 import DireccionField from "../fields/DireccionField";
 import FechaField from "../fields/FechaField";
 
-interface contentItem {
-  accountIA: number | null;
-  accountCode: number | null;
-  displayName: string;
+import { InformarButton } from "../owa-actions/InformarButton";
+
+import { Loader2 } from "lucide-react";
+
+/* =======================
+   Helpers
+======================= */
+
+function toChileISOString(dateString: string) {
+  const [datePart, timePart] = dateString.split("T");
+  const [year, month, day] = datePart.split("-");
+  const [hour, minute] = timePart.split(":");
+
+  const isSummerTime = new Date()
+    .toLocaleString("en-US", {
+      timeZone: "America/Santiago",
+      timeZoneName: "short",
+    })
+    .includes("GMT-3");
+
+  const offset = isSummerTime ? "-03:00" : "-04:00";
+
+  return `${year}-${month}-${day}T${hour}:${minute}:00${offset}`;
 }
+
+function getCookie(name: string): string | null {
+  const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+  return match ? decodeURIComponent(match[2]) : null;
+}
+
+function clearBookingCookie() {
+  document.cookie =
+    "bookingNumber=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+}
+
+/* =======================
+   Interfaces
+======================= */
 
 interface MensajeIAItem {
   nota: string;
   pickup: {
-    note: string;
     text: string;
     latitud: number;
     longitud: number;
-    placesIdsorigen: any[];
   };
-  Telefono: string;
   destination: {
-    note: string;
     text: string;
     latitud: number;
     longitud: number;
-    placesIdsdestino: any[];
   };
   pickupDueTime: string;
-  nombrePasajero: string;
-  "Centro de Costo": string;
+  nombrePasajero: string | null;
+  Telefono: string | null;
+  "Centro de Costo": string | null;
 }
 
 interface ApiResponse {
   content: string;
-  idCorreo: number;
   mensaje_ia: string;
 }
 
-export default function OWADetalle({ id }: { id: string }) {
+/* =======================
+   PROPS
+======================= */
+
+interface OWAFormProps {
+  rowId: string; // ID interno (BD)
+  emailData?: any; // ID real de Microsoft Graph
+}
+
+/* =======================
+   Component
+======================= */
+
+export default function OWAForm({ emailData }: OWAFormProps) {
+  const params = useParams<{ id: string }>();
+  const rowId = params.id;
+
   const [data, setData] = useState<MensajeIAItem[] | null>(null);
-  const [content, setContent] = useState<contentItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,68 +114,80 @@ export default function OWADetalle({ id }: { id: string }) {
   );
   const [openConvenioDialog, setOpenConvenioDialog] = useState(false);
 
-  const [previewJson, setPreviewJson] = useState<any | null>(null);
   const [nota, setNota] = useState("");
-
   const [origen, setOrigen] = useState({ text: "", latitud: 0, longitud: 0 });
   const [destino, setDestino] = useState({ text: "", latitud: 0, longitud: 0 });
+  const [pickupDueTime, setPickupDueTime] = useState("");
 
-  const [pickupDueTime, setPickupDueTime] = useState(""); // Fecha y hora editable
+  const [saving, setSaving] = useState(false);
+  const [showResultDialog, setShowResultDialog] = useState(false);
+  const [isProcessingNoInform, setIsProcessingNoInform] = useState(false);
 
-  // Traer datos de la API
+  const [bookingNumber, setBookingNumber] = useState<string | null>(null);
+
+  // ✅ Console log del emailId
+  console.log("ReplyButton emailId FormRESERVA:", emailData?.id);
+
+  /* =======================
+     Fetch inicial
+  ======================= */
+
   useEffect(() => {
     async function fetchData() {
       try {
         const res = await axios.get<ApiResponse>(
-          `https://ecotrans-intranet-370980788525.europe-west1.run.app/bodys/detalle/${id}`,
+          `https://ecotrans-intranet-370980788525.europe-west1.run.app/bodys/detalle/${rowId}`,
           { withCredentials: true }
         );
 
         const parsedIA = JSON.parse(res.data.mensaje_ia);
         const parsedArray = Array.isArray(parsedIA) ? parsedIA : [parsedIA];
+
         setData(parsedArray);
+        setNota(parsedArray[0]?.nota ?? "");
+        setPickupDueTime(parsedArray[0]?.pickupDueTime ?? "");
 
         const parsedContent = JSON.parse(res.data.content);
-        setContent(parsedContent);
 
-        setNota(parsedArray[0]?.nota || "");
-        setPickupDueTime(parsedArray[0]?.pickupDueTime || "");
+        setSelectedAccountCode(parsedContent?.accountCode ?? null);
+        setSelectedDisplayName(parsedContent?.displayName ?? null);
 
-        const formattedConvenio = parsedContent.accountCode
-          ? `${parsedContent.accountCode} - ${parsedContent.displayName}`
-          : parsedContent.displayName;
-        setConvenio(formattedConvenio);
-        setSelectedAccountCode(parsedContent.accountCode);
-        setSelectedDisplayName(parsedContent.displayName);
-      } catch (err) {
+        setConvenio(
+          parsedContent?.accountCode && parsedContent?.displayName
+            ? `${parsedContent.accountCode} - ${parsedContent.displayName}`
+            : parsedContent?.displayName ?? ""
+        );
+      } catch {
         setError("Error al cargar datos");
       } finally {
         setLoading(false);
       }
     }
+
     fetchData();
-  }, [id]);
+  }, [rowId]);
 
-  if (loading)
-    return (
-      <div className="p-8 space-y-4">
-        <Skeleton className="h-6 w-40" />
-        <Skeleton className="h-6 w-72" />
-        <Skeleton className="h-6 w-56" />
-      </div>
-    );
+  /* =======================
+     Guardar / Booking
+  ======================= */
 
-  if (error) return <p className="text-red-500">{error}</p>;
-  if (!data || data.length === 0) return <p>No hay datos disponibles.</p>;
+  const handleGuardar = async (item: MensajeIAItem) => {
+    setSaving(true);
 
-  // Genera JSON al presionar guardar
-  const handleGuardar = (item: MensajeIAItem) => {
     const json = {
-      pickupDueTime: pickupDueTime,
-      name: item.nombrePasajero,
-      telephoneNumber: item.Telefono,
-      displayName: selectedDisplayName || content?.displayName,
+      companyId: 1,
+      paymentType: "Account",
+      pickupDueTime: toChileISOString(pickupDueTime),
+      name: item.nombrePasajero ?? "",
+      passengers: 1,
+      telephoneNumber: item.Telefono ?? "",
+      customerId: 144,
+      accountType: "Account",
+      displayName: selectedDisplayName,
       accountCode: selectedAccountCode,
+      driverNote: nota,
+      officeNote: "SERV. POR SISTEMA OWA",
+      priority: 5,
       pickup: {
         address: {
           text: origen.text || item.pickup.text,
@@ -132,8 +195,8 @@ export default function OWADetalle({ id }: { id: string }) {
             latitude: origen.latitud || item.pickup.latitud,
             longitude: origen.longitud || item.pickup.longitud,
           },
-          street: origen.text || item.pickup.text,
         },
+        type: "Pickup",
       },
       destination: {
         address: {
@@ -142,114 +205,175 @@ export default function OWADetalle({ id }: { id: string }) {
             latitude: destino.latitud || item.destination.latitud,
             longitude: destino.longitud || item.destination.longitud,
           },
-          street: destino.text || item.destination.text,
         },
-        note: nota,
-        passengerDetailsIndex: 0,
         type: "Destination",
       },
-      driverNote: nota,
+      hold: true,
     };
 
-    setPreviewJson(json);
+    try {
+      await axios.post("/api/ghost/bookings/create", json);
+
+      const booking = getCookie("bookingNumber");
+      setBookingNumber(booking);
+
+      setShowResultDialog(true);
+    } catch (err) {
+      console.error(err);
+      alert("Error al crear la reserva");
+    } finally {
+      setSaving(false);
+    }
   };
+
+  /* =======================
+     Acciones Dialog
+  ======================= */
+
+  async function handleNoInformar() {
+    if (isProcessingNoInform) return;
+
+    setIsProcessingNoInform(true);
+
+    try {
+      await axios.put(
+        `https://ecotrans-intranet-370980788525.europe-west1.run.app/headers/estado/${rowId}`,
+        { estado: 2 }
+      );
+
+      await new Promise((r) => setTimeout(r, 1500));
+    } catch (error) {
+      console.error("Error actualizando estado:", error);
+    } finally {
+      clearBookingCookie();
+      window.location.href = "/dashboard/correos";
+    }
+  }
+
+  /* =======================
+     Render
+  ======================= */
+
+  if (loading) {
+    return (
+      <div className="p-8 space-y-4">
+        <Skeleton className="h-6 w-40" />
+        <Skeleton className="h-6 w-72" />
+        <Skeleton className="h-6 w-56" />
+      </div>
+    );
+  }
+
+  if (error) return <p className="text-red-500">{error}</p>;
+  if (!data) return null;
 
   return (
     <div className="py-2 space-y-4">
-      {previewJson && (
-        <pre className="bg-black text-green-400 p-4 text-xs rounded overflow-auto max-h-96">
-          {JSON.stringify(previewJson, null, 2)}
-        </pre>
-      )}
+      <Dialog open={showResultDialog}>
+        <DialogContent
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+          className="sm:max-w-md"
+        >
+          {!isProcessingNoInform ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Reserva creada correctamente</DialogTitle>
+              </DialogHeader>
+
+              {bookingNumber && (
+                <div className="flex justify-center py-4">
+                  <div className="w-full rounded-lg border bg-muted/40 p-6 text-center">
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Número de reserva
+                    </p>
+                    <p className="text-3xl font-bold tracking-wider">
+                      {bookingNumber}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <p className="text-sm text-muted-foreground text-center">
+                ¿Deseas informar esta reserva al cliente?
+              </p>
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  className="flex-1"
+                  variant="destructive"
+                  onClick={handleNoInformar}
+                >
+                  No informar
+                </Button>
+
+                {/* 👇 AQUÍ está la clave */}
+                <InformarButton emailId={emailData?.id} rowId={""} />
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center gap-4 py-8 text-center">
+              <Loader2 className="h-14 w-14 animate-spin text-primary" />
+              <h3 className="text-lg font-semibold">Completando reserva</h3>
+              <p className="text-sm text-muted-foreground">
+                Volviendo a la lista de correos…
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardContent className="space-y-6">
-          {/* Convenio */}
-          <div className="mb-6 space-y-4">
-            <ConvenioField
-              value={convenio || ""}
-              onOpenDialog={() => setOpenConvenioDialog(true)}
-            />
+          <ConvenioField
+            value={convenio}
+            onOpenDialog={() => setOpenConvenioDialog(true)}
+          />
 
-            <ConvenioDialog
-              open={openConvenioDialog}
-              onOpenChange={setOpenConvenioDialog}
-              onSelect={(accountCode, displayName) => {
-                setSelectedAccountCode(accountCode);
-                setSelectedDisplayName(displayName);
-                const formatted = accountCode
-                  ? `${accountCode} - ${displayName}`
-                  : displayName;
-                setConvenio(formatted);
-                setOpenConvenioDialog(false);
-              }}
-            />
-          </div>
+          <ConvenioDialog
+            open={openConvenioDialog}
+            onOpenChange={setOpenConvenioDialog}
+            onSelect={(code, name) => {
+              setSelectedAccountCode(code);
+              setSelectedDisplayName(name);
+              setConvenio(code ? `${code} - ${name}` : name);
+            }}
+          />
 
-          {/* Datos del mensaje */}
           {data.map((item, index) => (
             <div key={index} className="space-y-4">
               <FechaField value={pickupDueTime} onChange={setPickupDueTime} />
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Pasajero</label>
-                <Input value={item.nombrePasajero || ""} readOnly />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Telefono</label>
-                <Input value={item.Telefono || ""} readOnly />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Centro de costo</label>
-                <Input value={item["Centro de Costo"] || ""} readOnly />
-              </div>
+              <Input value={item.nombrePasajero ?? ""} readOnly />
+              <Input value={item.Telefono ?? ""} readOnly />
+              <Input value={item["Centro de Costo"] ?? ""} readOnly />
 
               <DireccionField
                 label="Origen"
                 initialValue={item.pickup.text}
-                onSelect={(data) =>
-                  setOrigen({
-                    text: data.text,
-                    latitud: data.lat,
-                    longitud: data.lng,
-                  })
+                onSelect={(d) =>
+                  setOrigen({ text: d.text, latitud: d.lat, longitud: d.lng })
                 }
               />
 
               <DireccionField
                 label="Destino"
                 initialValue={item.destination.text}
-                onSelect={(data) =>
-                  setDestino({
-                    text: data.text,
-                    latitud: data.lat,
-                    longitud: data.lng,
-                  })
+                onSelect={(d) =>
+                  setDestino({ text: d.text, latitud: d.lat, longitud: d.lng })
                 }
               />
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Nota Central</label>
-                <Textarea
-                  value={nota}
-                  onChange={(e) => setNota(e.target.value)}
-                  placeholder="Ingrese nota"
-                />
-              </div>
+              <Textarea
+                value={nota}
+                onChange={(e) => setNota(e.target.value)}
+              />
             </div>
           ))}
 
-          {/* Botones */}
-          <div className="flex gap-3 pt-4">
-            <Button className="flex-1" onClick={() => handleGuardar(data[0])}>
-              Guardar
-            </Button>
-            <Button variant="outline" className="flex-1">
-              Cancelar
-            </Button>
-          </div>
+          <Button onClick={() => handleGuardar(data[0])} disabled={saving}>
+            {saving ? "Creando..." : "Crear Reserva"}
+          </Button>
         </CardContent>
       </Card>
     </div>

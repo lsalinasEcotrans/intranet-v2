@@ -17,7 +17,16 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2, SearchCheck } from "lucide-react";
+import { Loader2, SearchCheck, Search } from "lucide-react";
+
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+  InputGroupText,
+  InputGroupTextarea,
+} from "@/components/ui/input-group";
 
 interface Customer {
   id: number;
@@ -83,12 +92,17 @@ export default function ConvenioDialog({
           </DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4">
-          <Input
-            placeholder="Buscar convenio..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            disabled={loading}
-          />
+          <InputGroup className="bg-white">
+            <InputGroupInput
+              placeholder="Buscar convenio..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              disabled={loading}
+            />
+            <InputGroupAddon>
+              <Search />
+            </InputGroupAddon>
+          </InputGroup>
 
           {loading ? (
             <div className="space-y-4">

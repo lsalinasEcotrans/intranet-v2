@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -15,6 +15,17 @@ import { Editor } from "@tinymce/tinymce-react";
 import { Reply, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import axios from "axios";
 
+/* =========================================================
+   Tipos
+========================================================= */
+type UserData = {
+  fullName: string;
+  cargo: string;
+  departamento: string;
+  username: string;
+  nexterno?: string | null;
+};
+
 interface ReplyButtonProps {
   emailId: string;
   rowId: string;
@@ -22,6 +33,126 @@ interface ReplyButtonProps {
 
 type SendStatus = "idle" | "sending" | "success" | "error";
 
+/* =========================================================
+   Utilidades
+========================================================= */
+function getCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) {
+    return parts.pop()?.split(";").shift() ?? null;
+  }
+  return null;
+}
+
+function buildSignatureHTML(user: UserData): string {
+  const email = `${user.username.toLowerCase()}@ecotranschile.cl`;
+  const phone =
+    user.nexterno && user.nexterno.trim() !== "" ? user.nexterno : "227132000";
+
+  return `
+<br><br><br>
+---
+<table
+  width="600"
+  cellpadding="0"
+  cellspacing="0"
+  border="0"
+  style="font-family: Arial, sans-serif; font-size:12px; color:#333; border-collapse:collapse; border:0;"
+>
+  <tr>
+    <td
+      width="40%"
+      style="padding-right:10px; vertical-align:top; border:0;"
+    >
+      <p style="margin:0; font-size:16px; font-weight:bold; color:#0a6e3f;">
+        ${user.fullName}
+      </p>
+
+      <p style="margin:0; font-size:12px; color:#555;">
+        ${user.cargo} | ${user.departamento}
+      </p>
+
+      <img
+        src="https://www.ecotranschile.cl/img/logoEcotrans_50px.png"
+        alt="Logo Ecotrans"
+        style="height:50px; border:0; display:block;"
+      />
+    </td>
+
+    <td
+      width="60%"
+      style="padding-left:10px; vertical-align:top; border:0;"
+    >
+      <p style="margin:0; font-size:12px; color:#555;">
+        📞 ${phone}
+      </p>
+
+      <p style="margin:0; font-size:12px; color:#555;">
+        ✉️
+        <a
+          href="mailto:${email}"
+          style="color:#0a6e3f; text-decoration:none;"
+        >
+          ${email}
+        </a>
+      </p>
+
+      <p style="margin:0; font-size:12px; color:#555;">
+        🌐
+        <a
+          href="https://www.ecotranschile.cl"
+          style="color:#0a6e3f; text-decoration:none;"
+        >
+          www.ecotranschile.cl
+        </a>
+      </p>
+    </td>
+  </tr>
+
+  <tr>
+    <td
+      colspan="2"
+      style="padding-top:15px; background-color:#f2f7f2; border-radius:6px; padding:8px; border:0;"
+    >
+      <img
+        src="https://www.ecotranschile.cl/img/qr_apps.jpg"
+        alt="QREcotrans"
+        width="90"
+        height="90"
+        style="display:inline-block; vertical-align:middle; margin-right:10px; border:0;"
+      />
+
+      <div
+        style="display:inline-block; vertical-align:middle; max-width:440px; line-height:1.3; font-size:12px; color:#555;"
+      >
+        <h2
+          style="font-style: italic; font-weight: bold; margin: 0; color: #6C9E3C; font-size:14px;"
+        >
+          Nuevos canales de atención
+        </h2>
+
+        Queremos estar más cerca de ti, habilitando nuevos canales de atención.<br />
+        Visítanos en
+        <a
+          href="https://apps.ecotranschile.cl/"
+          style="color:#0a6e3f; text-decoration:none;"
+        >
+          apps.ecotranschile.cl
+        </a><br />
+        O escanea el código QR para acceder directamente.
+      </div>
+    </td>
+  </tr>
+</table>
+`;
+}
+
+/* =========================================================
+   Componente
+========================================================= */
 export function ReplyButton({ emailId, rowId }: ReplyButtonProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -29,6 +160,26 @@ export function ReplyButton({ emailId, rowId }: ReplyButtonProps) {
   const [sendStatus, setSendStatus] = useState<SendStatus>("idle");
   const [sendError, setSendError] = useState<string | null>(null);
   const [editorLoading, setEditorLoading] = useState(true);
+  const [user, setUser] = useState<UserData | null>(null);
+
+  // Cargar datos del usuario desde cookies
+  useEffect(() => {
+    const raw = getCookie("user_data");
+    if (!raw) return;
+
+    try {
+      setUser(JSON.parse(decodeURIComponent(raw)));
+    } catch (e) {
+      console.error("Error leyendo user_data", e);
+    }
+  }, []);
+
+  // Establecer la firma inicial cuando se cargue el usuario
+  useEffect(() => {
+    if (user) {
+      setEditorContent(buildSignatureHTML(user));
+    }
+  }, [user]);
 
   async function handleSend() {
     if (!editorContent.trim()) return;
@@ -61,7 +212,7 @@ export function ReplyButton({ emailId, rowId }: ReplyButtonProps) {
       // Redirigir después de mostrar el mensaje de éxito
       setTimeout(() => {
         setOpen(false);
-        setEditorContent("");
+        setEditorContent(user ? buildSignatureHTML(user) : "");
         setSendStatus("idle");
         router.push("/dashboard/correos");
       }, 1500);
@@ -85,7 +236,7 @@ export function ReplyButton({ emailId, rowId }: ReplyButtonProps) {
   return (
     <>
       <Button variant="outline" onClick={() => setOpen(true)}>
-        <Reply className="h-4 w-4" />
+        <Reply className="h-4 w-4 mr-2" />
         Responder
       </Button>
 
@@ -103,6 +254,7 @@ export function ReplyButton({ emailId, rowId }: ReplyButtonProps) {
             }
           }}
         >
+          {/* Overlay de estados de envío */}
           {(sendStatus === "sending" || sendStatus === "success") && (
             <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
               <div className="flex flex-col items-center gap-4 p-8 text-center">
@@ -159,7 +311,6 @@ export function ReplyButton({ emailId, rowId }: ReplyButtonProps) {
           >
             <Editor
               apiKey="ko3uc7v3s2ivzoljqm36krk01nf2l4i37b58h0irm57fd6dz"
-              initialValue=""
               value={editorContent}
               onEditorChange={(content) => setEditorContent(content)}
               onInit={() => setEditorLoading(false)}
@@ -215,7 +366,7 @@ export function ReplyButton({ emailId, rowId }: ReplyButtonProps) {
             >
               {sendStatus === "sending" ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Enviando...
                 </>
               ) : (

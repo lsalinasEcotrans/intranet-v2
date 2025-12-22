@@ -25,6 +25,7 @@ export default function EmailFormLayout({
   const [showFullscreen, setShowFullscreen] = useState(false);
   const [showFormModal, setShowFormModal] = useState(false);
   const { id } = useParams();
+  const OWAFormAny = OWAForm as any;
 
   return (
     <>
@@ -78,7 +79,7 @@ export default function EmailFormLayout({
                 <Maximize2 className="w-4 h-4" />
               </Button>
             </div>
-            <OWAForm id={id as string} />
+            <OWAFormAny id={id as string} emailData={emailData} />
           </div>
         </div>
       </div>

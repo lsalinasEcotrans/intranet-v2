@@ -114,6 +114,9 @@ export async function POST(request: NextRequest) {
         username: userData.username,
         fullName: userData.full_name,
         role: userData.role_name,
+        cargo: userData.cargo,
+        departamento: userData.departamento,
+        nexterno: userData.nexterno,
       }),
       {
         httpOnly: false,
