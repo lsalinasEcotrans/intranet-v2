@@ -135,7 +135,7 @@ export default function CorreosTable() {
           <Table className="min-w-max">
             <TableHeader className="bg-muted/50">
               <TableRow>
-                <TableHead className="font-semibold">Fecha</TableHead>
+                <TableHead className="font-semibold">Fecha, Hora</TableHead>
                 <TableHead className="font-semibold">Asunto</TableHead>
                 <TableHead className="font-semibold">Intención</TableHead>
                 <TableHead className="font-semibold">Estado</TableHead>

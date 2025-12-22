@@ -79,6 +79,22 @@ interface CorreoRowProps {
   onClick: (correo: CorreoNormalizado) => void;
 }
 
+function formatFechaHora(fecha: string) {
+  const iso = fecha.replace(" ", "T"); // 2025-12-18T15:31:37
+  const date = new Date(iso);
+
+  if (isNaN(date.getTime())) return fecha;
+
+  return date.toLocaleString("es-CL", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false, // 👈 FUERZA formato 24 hrs
+  });
+}
+
 export default function CorreoRow({ correo, onClick }: CorreoRowProps) {
   const esClickeable =
     (correo.estadoNormalizado === "Pendiente" || correo.esMio) &&
@@ -92,12 +108,9 @@ export default function CorreoRow({ correo, onClick }: CorreoRowProps) {
       } ${correo.esMio ? "border-l-4 border-l-blue-500 bg-blue-50/30" : ""}`}
     >
       <TableCell className="font-medium">
-        {new Date(correo.fecha).toLocaleDateString("es-CL", {
-          day: "2-digit",
-          month: "short",
-          year: "numeric",
-        })}
+        {formatFechaHora(correo.fecha)}
       </TableCell>
+
       <TableCell className="max-w-[400px] truncate">
         <div className="flex items-center gap-2">
           {correo.esMio && <User className="h-4 w-4 text-blue-600" />}
