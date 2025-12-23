@@ -30,8 +30,8 @@ import DireccionField from "./fields/DireccionField";
 import FechaField from "./fields/FechaField";
 
 interface contentItem {
-  accountIA: number | null;
-  accountCode: number | null;
+  customerId: string;
+  accountCode: string;
   displayName: string;
 }
 
@@ -80,6 +80,9 @@ export default function FormModal({
   const [error, setError] = useState<string | null>(null);
 
   const [convenio, setConvenio] = useState("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(
+    null
+  );
   const [selectedAccountCode, setSelectedAccountCode] = useState<string | null>(
     null
   );
@@ -216,9 +219,18 @@ export default function FormModal({
                           <ConvenioDialog
                             open={openConvenioDialog}
                             onOpenChange={setOpenConvenioDialog}
-                            onSelect={(accountCode, displayName) => {
-                              setSelectedAccountCode(accountCode);
-                              setSelectedDisplayName(displayName);
+                            onSelect={(
+                              customerId,
+                              accountCode,
+                              displayName
+                            ) => {
+                              setSelectedCustomerId(
+                                customerId != null ? String(customerId) : null
+                              );
+                              setSelectedAccountCode(
+                                accountCode != null ? String(accountCode) : null
+                              );
+                              setSelectedDisplayName(displayName); // esto ya debería ser string
                               const formatted = accountCode
                                 ? `${accountCode} - ${displayName}`
                                 : displayName;
