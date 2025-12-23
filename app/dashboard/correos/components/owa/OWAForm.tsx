@@ -108,6 +108,9 @@ export default function OWAForm({ emailData }: OWAFormProps) {
   const [error, setError] = useState<string | null>(null);
 
   const [convenio, setConvenio] = useState("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(
+    null
+  );
   const [selectedAccountCode, setSelectedAccountCode] = useState<string | null>(
     null
   );
@@ -150,11 +153,14 @@ export default function OWAForm({ emailData }: OWAFormProps) {
 
         const parsedContent = JSON.parse(res.data.content);
 
+        setSelectedCustomerId(parsedContent?.customerId ?? null);
         setSelectedAccountCode(parsedContent?.accountCode ?? null);
         setSelectedDisplayName(parsedContent?.displayName ?? null);
 
         setConvenio(
-          parsedContent?.accountCode && parsedContent?.displayName
+          parsedContent?.customerId &&
+            parsedContent?.accountCode &&
+            parsedContent?.displayName
             ? `${parsedContent.accountCode} - ${parsedContent.displayName}`
             : parsedContent?.displayName ?? ""
         );
@@ -196,7 +202,7 @@ export default function OWAForm({ emailData }: OWAFormProps) {
       name: item.nombrePasajero ?? "",
       passengers: 1,
       telephoneNumber: item.Telefono ?? "",
-      customerId: 144,
+      customerId: selectedCustomerId,
       accountType: "Account",
       displayName: selectedDisplayName,
       accountCode: selectedAccountCode,
@@ -282,70 +288,8 @@ export default function OWAForm({ emailData }: OWAFormProps) {
   if (error) return <p className="text-red-500">{error}</p>;
   if (!data) return null;
 
-  function buildBookingJson(
-    item: MensajeIAItem,
-    pickupDueTime: string,
-    nota: string,
-    origen: { text: string; latitud: number; longitud: number },
-    destino: { text: string; latitud: number; longitud: number },
-    selectedDisplayName: string | null,
-    selectedAccountCode: string | null
-  ) {
-    return {
-      companyId: 1,
-      paymentType: "Account",
-      pickupDueTime: toChileISOString(pickupDueTime),
-      name: item.nombrePasajero ?? "",
-      passengers: 1,
-      telephoneNumber: item.Telefono ?? "",
-      customerId: customerId,
-      accountType: "Account",
-      displayName: selectedDisplayName,
-      accountCode: selectedAccountCode,
-      driverNote: nota,
-      officeNote: "SERV. POR SISTEMA OWA",
-      priority: 5,
-      pickup: {
-        address: {
-          text: origen.text || item.pickup.text,
-          coordinate: {
-            latitude: origen.latitud || item.pickup.latitud,
-            longitude: origen.longitud || item.pickup.longitud,
-          },
-        },
-        type: "Pickup",
-      },
-      destination: {
-        address: {
-          text: destino.text || item.destination.text,
-          coordinate: {
-            latitude: destino.latitud || item.destination.latitud,
-            longitude: destino.longitud || item.destination.longitud,
-          },
-        },
-        type: "Destination",
-      },
-      hold: true,
-    };
-  }
-
   return (
     <div className="py-2 space-y-4">
-      <pre className="max-h-[400px] overflow-auto rounded-md bg-black text-green-400 p-4 text-xs">
-        {JSON.stringify(
-          buildBookingJson(
-            data[0],
-            pickupDueTime,
-            nota,
-            origen,
-            destino,
-            selectedDisplayName,
-            selectedAccountCode
-          ),
-          null,
-          2
-        )}
-      </pre>
       <Dialog open={showResultDialog}>
         <DialogContent
           onInteractOutside={(e) => e.preventDefault()}
