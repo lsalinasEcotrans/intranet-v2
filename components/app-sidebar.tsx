@@ -35,6 +35,7 @@ interface MenuItem {
   icon: string;
   title: string;
   items: MenuItem[];
+  external?: boolean;
 }
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
@@ -70,6 +71,7 @@ export function AppSidebar({ user, menuItems, ...props }: AppSidebarProps) {
       items: item.items.map((subItem) => ({
         title: subItem.title,
         url: subItem.url,
+        external: subItem.external === true,
       })),
     }));
   }, [menuItems]);

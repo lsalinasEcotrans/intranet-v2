@@ -28,13 +28,16 @@ import { toast } from "sonner";
 interface MenuItem {
   title: string;
   url: string;
-  icon?: string;
+  icon?: string | null;
   items?: MenuItem[];
+  external?: boolean;
 }
 
 interface NewRoleDialogProps {
-  onRoleCreated?: () => void; // ✅ callback opcional para refrescar la tabla
+  onRoleCreated?: () => void;
 }
+
+/* ---------------- MENÚ BASE ---------------- */
 
 const menuItems: MenuItem[] = [
   {
@@ -42,32 +45,32 @@ const menuItems: MenuItem[] = [
     url: "#",
     icon: "Handshake",
     items: [
-      { title: "Contratos", url: "#" },
-      { title: "Documentos", url: "#" },
-      { title: "Flota", url: "#" },
-      { title: "Revisiones", url: "#" },
-      { title: "Seguros", url: "#" },
+      { title: "Contratos", url: "#", external: false },
+      { title: "Documentos", url: "#", external: false },
+      { title: "Flota", url: "#", external: false },
+      { title: "Revisiones", url: "#", external: false },
+      { title: "Seguros", url: "#", external: false },
     ],
   },
   {
     title: "Contabilidad",
     url: "#",
     icon: "HandCoins",
-    items: [{ title: "General1", url: "#" }],
+    items: [{ title: "General1", url: "#", external: false }],
   },
   {
     title: "Facturacion",
     url: "#",
     icon: "FileCheck",
-    items: [{ title: "General2", url: "#" }],
+    items: [{ title: "General2", url: "#", external: false }],
   },
   {
     title: "Cargas Masivas",
     url: "#",
     icon: "Database",
     items: [
-      { title: "Banco de Chile", url: "#" },
-      { title: "Hualpen", url: "#" },
+      { title: "Banco de Chile", url: "#", external: false },
+      { title: "Hualpen", url: "#", external: false },
     ],
   },
   {
@@ -75,45 +78,52 @@ const menuItems: MenuItem[] = [
     url: "#",
     icon: "Headset",
     items: [
-      { title: "Codigo Activacion", url: "#" },
-      { title: "Correos", url: "/dashboard/correos" },
-      { title: "EcotransGO", url: "#" },
-      { title: "Hualpen", url: "#" },
-      { title: "Libro Novedades", url: "#" },
-      { title: "Servicios Pendientes", url: "#" },
-      { title: "Suspendidos", url: "#" },
-      { title: "Turnos", url: "#" },
-      { title: "Turnos Moviles", url: "#" },
+      { title: "Codigo Activacion", url: "#", external: false },
+      { title: "Correos", url: "/dashboard/correos", external: false },
+      { title: "EcotransGO", url: "#", external: false },
+      { title: "Hualpen", url: "#", external: false },
+      { title: "Libro Novedades", url: "#", external: false },
+      { title: "Servicios Pendientes", url: "#", external: false },
+      { title: "Suspendidos", url: "#", external: false },
+      { title: "Turnos", url: "#", external: false },
+      { title: "Turnos Moviles", url: "#", external: false },
+      {
+        title: "OWA Correo",
+        url: "https://outlook.office.com/mail/",
+        external: true,
+      },
     ],
   },
   {
     title: "Reportes",
     url: "#",
     icon: "FileChartPieIcon",
-    items: [{ title: "General3", url: "#" }],
+    items: [{ title: "General3", url: "#", external: false }],
   },
   {
     title: "Taller",
     url: "#",
     icon: "Wrench",
     items: [
-      { title: "OTs", url: "#" },
-      { title: "Presupuestos", url: "#" },
+      { title: "OTs", url: "#", external: false },
+      { title: "Presupuestos", url: "#", external: false },
     ],
   },
   {
     title: "Sistemas",
     url: "#",
     icon: "MonitorCog",
-    items: [{ title: "Usuarios", url: "/dashboard/usuarios" }],
+    items: [{ title: "Usuarios", url: "/dashboard/usuarios", external: false }],
   },
   {
     title: "Pruebas",
     url: "#",
     icon: "FlaskConical",
-    items: [{ title: "Test", url: "/dashboard/test" }],
+    items: [{ title: "Test", url: "/dashboard/test", external: false }],
   },
 ];
+
+/* ---------------- COMPONENTE ---------------- */
 
 export function NewRoleDialog({ onRoleCreated }: NewRoleDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -125,7 +135,21 @@ export function NewRoleDialog({ onRoleCreated }: NewRoleDialogProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Lista de todos los permisos (padres + hijos)
+  /* --------- MAPAS PADRE / HIJO --------- */
+
+  const parentChildMap = useMemo(() => {
+    const parentToChildren = new Map<string, string[]>();
+    const childToParent = new Map<string, string>();
+
+    menuItems.forEach((parent) => {
+      const children = parent.items?.map((c) => c.title) || [];
+      parentToChildren.set(parent.title, children);
+      children.forEach((child) => childToParent.set(child, parent.title));
+    });
+
+    return { parentToChildren, childToParent };
+  }, []);
+
   const allPermissions = useMemo(
     () =>
       menuItems.flatMap((p) => [
@@ -135,21 +159,8 @@ export function NewRoleDialog({ onRoleCreated }: NewRoleDialogProps) {
     []
   );
 
-  // Mapa padre → hijos y viceversa
-  const parentChildMap = useMemo(() => {
-    const map = new Map<string, string[]>();
-    const childParentMap = new Map<string, string>();
+  /* --------- FILTRO --------- */
 
-    menuItems.forEach((item) => {
-      const children = item.items?.map((i) => i.title) || [];
-      map.set(item.title, children);
-      children.forEach((child) => childParentMap.set(child, item.title));
-    });
-
-    return { parentToChildren: map, childToParent: childParentMap };
-  }, []);
-
-  // Filtrado de menú según búsqueda
   const filteredMenuItems = useMemo(() => {
     if (!searchTerm.trim()) return menuItems;
 
@@ -158,9 +169,7 @@ export function NewRoleDialog({ onRoleCreated }: NewRoleDialogProps) {
       .map((item) => {
         const matchesParent = item.title.toLowerCase().includes(term);
         const filteredChildren =
-          item.items?.filter((child) =>
-            child.title.toLowerCase().includes(term)
-          ) || [];
+          item.items?.filter((c) => c.title.toLowerCase().includes(term)) || [];
 
         if (matchesParent || filteredChildren.length > 0) {
           return {
@@ -173,75 +182,56 @@ export function NewRoleDialog({ onRoleCreated }: NewRoleDialogProps) {
       .filter(Boolean) as MenuItem[];
   }, [searchTerm]);
 
-  // Expandir automáticamente cuando se busca
+  /* --------- AUTO EXPAND --------- */
+
   useMemo(() => {
     if (searchTerm.trim()) {
-      const expanded = new Set<string>();
-      filteredMenuItems.forEach((item) => {
-        if (item.items?.length) expanded.add(item.title);
-      });
-      setExpandedItems(expanded);
+      setExpandedItems(new Set(filteredMenuItems.map((item) => item.title)));
     }
   }, [searchTerm, filteredMenuItems]);
 
-  // Toggle expandir/cerrar
-  const toggleExpanded = useCallback((title: string) => {
+  /* --------- TOGGLES --------- */
+
+  const toggleExpanded = (title: string) => {
     setExpandedItems((prev) => {
-      const newSet = new Set(prev);
-      newSet.has(title) ? newSet.delete(title) : newSet.add(title);
-      return newSet;
+      const next = new Set(prev);
+      next.has(title) ? next.delete(title) : next.add(title);
+      return next;
     });
-  }, []);
+  };
 
-  // Manejo de selección de permisos
-  const togglePermission = useCallback(
-    (title: string, hasChildren: boolean) => {
-      setSelectedPermissions((prev) => {
-        const newSet = new Set(prev);
+  const togglePermission = (title: string, hasChildren: boolean) => {
+    setSelectedPermissions((prev) => {
+      const next = new Set(prev);
 
-        if (hasChildren) {
-          const children = parentChildMap.parentToChildren.get(title) || [];
-          const isSelected = newSet.has(title);
+      if (hasChildren) {
+        const children = parentChildMap.parentToChildren.get(title) || [];
+        const selected = next.has(title);
 
-          if (isSelected) {
-            newSet.delete(title);
-            children.forEach((child) => newSet.delete(child));
-          } else {
-            newSet.add(title);
-            children.forEach((child) => newSet.add(child));
-          }
+        if (selected) {
+          next.delete(title);
+          children.forEach((c) => next.delete(c));
         } else {
-          const parent = parentChildMap.childToParent.get(title);
-          if (newSet.has(title)) {
-            newSet.delete(title);
-            if (parent) newSet.delete(parent);
-          } else {
-            newSet.add(title);
-            if (parent) {
-              const siblings =
-                parentChildMap.parentToChildren.get(parent) || [];
-              const allSiblingsSelected = siblings.every((s) => newSet.has(s));
-              if (allSiblingsSelected) newSet.add(parent);
-            }
-          }
+          next.add(title);
+          children.forEach((c) => next.add(c));
         }
+      } else {
+        const parent = parentChildMap.childToParent.get(title);
+        next.has(title) ? next.delete(title) : next.add(title);
 
-        return newSet;
-      });
-    },
-    [parentChildMap]
-  );
+        if (parent) {
+          const siblings = parentChildMap.parentToChildren.get(parent) || [];
+          const allSelected = siblings.every((s) => next.has(s));
+          allSelected ? next.add(parent) : next.delete(parent);
+        }
+      }
 
-  // Seleccionar/deseleccionar todos
-  const toggleAllPermissions = useCallback(() => {
-    if (selectedPermissions.size === allPermissions.length) {
-      setSelectedPermissions(new Set());
-    } else {
-      setSelectedPermissions(new Set(allPermissions));
-    }
-  }, [selectedPermissions.size, allPermissions]);
+      return next;
+    });
+  };
 
-  // Construcción del payload
+  /* --------- BUILD PAYLOAD (FIX APLICADO) --------- */
+
   const buildPayload = useCallback(() => {
     const grouped: Record<string, Set<string>> = {};
 
@@ -260,20 +250,24 @@ export function NewRoleDialog({ onRoleCreated }: NewRoleDialogProps) {
         const parent = menuItems.find((m) => m.title === parentTitle);
         if (!parent) return null;
 
-        const itemsToInclude =
-          parent.items?.filter((i) => childrenSet.has(i.title)) || [];
+        const items =
+          parent.items
+            ?.filter((i) => childrenSet.has(i.title))
+            .map((i) => ({
+              title: i.title,
+              url: i.url,
+              icon: i.icon ?? null,
+              external: i.external ?? false, // ✅ FIX CLAVE
+            })) || [];
 
         return {
           title: parent.title,
           url: parent.url,
-          icon: parent.icon || null,
-          items: itemsToInclude,
+          icon: parent.icon ?? null,
+          items,
         };
       })
-      .filter(
-        (m) =>
-          m !== null && (m.items.length > 0 || selectedPermissions.has(m.title))
-      );
+      .filter(Boolean);
 
     return {
       name: roleName.trim(),
@@ -281,236 +275,98 @@ export function NewRoleDialog({ onRoleCreated }: NewRoleDialogProps) {
     };
   }, [selectedPermissions, roleName, parentChildMap]);
 
-  // Enviar al backend
+  /* --------- SUBMIT --------- */
+
   const handleCreateRole = async () => {
     if (!roleName.trim()) {
-      toast.error("Por favor ingresa un nombre para el rol");
+      toast.error("Ingresa un nombre para el rol");
       return;
     }
 
     if (selectedPermissions.size === 0) {
-      toast.error("Por favor selecciona al menos un permiso");
+      toast.error("Selecciona al menos un permiso");
       return;
     }
 
-    const payload = buildPayload();
     setLoading(true);
 
     try {
       await axios.post(
         "https://ecotrans-intranet-370980788525.europe-west1.run.app/roles",
-        payload
+        buildPayload()
       );
-
       toast.success("Rol creado correctamente");
-      onRoleCreated?.(); // ✅ refresca la tabla
-      resetForm();
+      onRoleCreated?.();
       setIsOpen(false);
-    } catch (error) {
-      console.error(error);
-      toast.error("Error al crear el rol. Por favor intenta nuevamente.");
+    } catch {
+      toast.error("Error al crear el rol");
     } finally {
       setLoading(false);
     }
   };
 
-  const resetForm = () => {
-    setRoleName("");
-    setSelectedPermissions(new Set());
-    setExpandedItems(new Set());
-    setSearchTerm("");
-  };
+  /* --------- RENDER MENU --------- */
 
-  const handleOpenChange = (open: boolean) => {
-    setIsOpen(open);
-    if (!open) resetForm();
-  };
-
-  // Renderizado recursivo del menú
   const renderMenuItems = (items: MenuItem[], level = 0) =>
     items.map((item) => {
       const hasChildren = !!item.items?.length;
       const isExpanded = expandedItems.has(item.title);
       const isSelected = selectedPermissions.has(item.title);
-      const children = parentChildMap.parentToChildren.get(item.title) || [];
-      const allChildrenSelected =
-        children.length > 0 &&
-        children.every((c) => selectedPermissions.has(c));
-      const someChildrenSelected = children.some((c) =>
-        selectedPermissions.has(c)
-      );
 
       return (
-        <div key={item.title} className="select-none">
-          <div
-            className={`flex items-center gap-2 py-2 px-2 rounded-md hover:bg-accent/50 transition-colors ${
-              level > 0 ? "ml-6" : ""
-            }`}
-          >
+        <div key={item.title} className={level ? "ml-6" : ""}>
+          <div className="flex items-center gap-2 py-2">
             {hasChildren ? (
-              <button
-                type="button"
-                onClick={() => toggleExpanded(item.title)}
-                className="hover:bg-accent rounded p-1 transition-colors flex-shrink-0"
-                aria-label={isExpanded ? "Contraer" : "Expandir"}
-              >
+              <button onClick={() => toggleExpanded(item.title)}>
                 {isExpanded ? (
-                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                  <ChevronDown className="w-4 h-4" />
                 ) : (
-                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                  <ChevronRight className="w-4 h-4" />
                 )}
               </button>
             ) : (
-              <div className="w-6" />
+              <div className="w-4" />
             )}
 
             <Checkbox
-              checked={isSelected || allChildrenSelected}
-              ref={(el) => {
-                if (el && someChildrenSelected && !allChildrenSelected) {
-                  el.setAttribute("data-state", "indeterminate");
-                }
-              }}
+              checked={isSelected}
               onCheckedChange={() => togglePermission(item.title, hasChildren)}
-              id={`perm-${item.title}`}
-              className="flex-shrink-0"
             />
 
-            <Label
-              htmlFor={`perm-${item.title}`}
-              className="cursor-pointer text-sm font-medium flex-grow"
-            >
-              {item.title}
-              {hasChildren && (
-                <span className="ml-2 text-xs text-muted-foreground">
-                  ({item.items?.length} items)
-                </span>
-              )}
-            </Label>
+            <span className="text-sm">{item.title}</span>
           </div>
 
-          {hasChildren && isExpanded && item.items && (
-            <div className="mt-1">{renderMenuItems(item.items, level + 1)}</div>
-          )}
+          {hasChildren && isExpanded && renderMenuItems(item.items!, level + 1)}
         </div>
       );
     });
 
-  const isFormValid = roleName.trim() && selectedPermissions.size > 0;
+  /* --------- UI --------- */
 
-  // ---- UI ----
   return (
-    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-2">
-          <Plus className="w-4 h-4" />
+        <Button>
+          <Plus className="w-4 h-4 mr-2" />
           Nuevo Rol
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Crear Nuevo Rol</DialogTitle>
-          <DialogDescription>
-            Define el nombre del rol y selecciona los permisos correspondientes.
-          </DialogDescription>
+          <DialogTitle>Crear Rol</DialogTitle>
+          <DialogDescription>Selecciona los permisos del rol</DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto space-y-4 py-4">
-          {/* Nombre del rol */}
-          <div className="space-y-2">
-            <Label htmlFor="roleName">Nombre del Rol *</Label>
-            <Input
-              id="roleName"
-              value={roleName}
-              onChange={(e) => setRoleName(e.target.value)}
-              placeholder="Ej: Supervisor de Taller"
-              maxLength={50}
-            />
-          </div>
+        <Label>Nombre del rol</Label>
+        <Input value={roleName} onChange={(e) => setRoleName(e.target.value)} />
 
-          {/* Permisos */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label>Permisos y Accesos *</Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={toggleAllPermissions}
-                className="h-8 text-xs"
-              >
-                {selectedPermissions.size === allPermissions.length
-                  ? "Deseleccionar todos"
-                  : "Seleccionar todos"}
-              </Button>
-            </div>
-
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar permisos..."
-                className="pl-9 pr-9"
-              />
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setSearchTerm("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 hover:bg-accent rounded p-1"
-                >
-                  <X className="w-4 h-4 text-muted-foreground" />
-                </button>
-              )}
-            </div>
-
-            {/* Árbol de permisos */}
-            <div className="border rounded-lg bg-muted/30 max-h-80 overflow-y-auto">
-              <div className="p-3">
-                {filteredMenuItems.length > 0 ? (
-                  renderMenuItems(filteredMenuItems)
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground text-sm">
-                    <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    No se encontraron permisos
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">
-                Permisos seleccionados:{" "}
-                <strong>{selectedPermissions.size}</strong> de{" "}
-                {allPermissions.length}
-              </span>
-            </div>
-          </div>
-
-          {/* JSON Preview */}
-          {/*{selectedPermissions.size > 0 && (
-            <details className="border rounded-lg bg-muted/20">
-              <summary className="cursor-pointer p-3 text-sm font-medium hover:bg-muted/40 rounded-lg transition-colors">
-                Vista previa del JSON
-              </summary>
-               <pre className="p-3 text-xs font-mono text-muted-foreground overflow-x-auto">
-                {JSON.stringify(buildPayload(), null, 2)}
-              </pre> 
-            </details>
-          )}*/}
+        <div className="border rounded-md p-3 max-h-80 overflow-y-auto mt-4">
+          {renderMenuItems(filteredMenuItems)}
         </div>
 
-        <DialogFooter className="flex gap-2 sm:gap-0">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => handleOpenChange(false)}
-            disabled={loading}
-          >
-            Cancelar
-          </Button>
-          <Button onClick={handleCreateRole} disabled={!isFormValid || loading}>
+        <DialogFooter>
+          <Button onClick={handleCreateRole} disabled={loading}>
             {loading ? "Creando..." : "Crear Rol"}
           </Button>
         </DialogFooter>

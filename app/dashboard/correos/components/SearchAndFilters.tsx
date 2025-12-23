@@ -74,13 +74,13 @@ export default function SearchAndFilters({
         >
           En proceso ({contadores.enProceso})
         </Badge>
-        <Badge
+        {/* <Badge
           variant={estadoFilter === "Completado" ? "default" : "outline"}
           className="cursor-pointer border-green-300 bg-green-50 text-green-700 hover:bg-green-100"
           onClick={() => onEstadoFilterChange("Completado")}
         >
           Completados ({contadores.completados})
-        </Badge>
+        </Badge> */}
         <Badge
           variant={
             estadoFilter === "Espera de respuesta" ? "default" : "outline"

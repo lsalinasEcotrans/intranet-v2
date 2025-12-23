@@ -24,6 +24,8 @@ import DireccionField from "../fields/DireccionField";
 import FechaField from "../fields/FechaField";
 
 import { InformarButton } from "../owa-actions/InformarButton";
+import { ReplyManual } from "../owa-actions/ReplyManual";
+import { CompleteButton } from "../owa-actions/CompleteButton";
 
 import { Loader2 } from "lucide-react";
 
@@ -107,12 +109,17 @@ export default function OWAForm({ emailData }: OWAFormProps) {
   const [error, setError] = useState<string | null>(null);
 
   const [convenio, setConvenio] = useState("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(
+    null
+  );
   const [selectedAccountCode, setSelectedAccountCode] = useState<string | null>(
     null
   );
   const [selectedDisplayName, setSelectedDisplayName] = useState<string | null>(
     null
   );
+  const [customerId, setCustomerId] = useState<number | null>(null);
+
   const [openConvenioDialog, setOpenConvenioDialog] = useState(false);
 
   const [nota, setNota] = useState("");
@@ -147,11 +154,14 @@ export default function OWAForm({ emailData }: OWAFormProps) {
 
         const parsedContent = JSON.parse(res.data.content);
 
+        setSelectedCustomerId(parsedContent?.customerId ?? null);
         setSelectedAccountCode(parsedContent?.accountCode ?? null);
         setSelectedDisplayName(parsedContent?.displayName ?? null);
 
         setConvenio(
-          parsedContent?.accountCode && parsedContent?.displayName
+          parsedContent?.customerId &&
+            parsedContent?.accountCode &&
+            parsedContent?.displayName
             ? `${parsedContent.accountCode} - ${parsedContent.displayName}`
             : parsedContent?.displayName ?? ""
         );
@@ -193,7 +203,7 @@ export default function OWAForm({ emailData }: OWAFormProps) {
       name: item.nombrePasajero ?? "",
       passengers: 1,
       telephoneNumber: item.Telefono ?? "",
-      customerId: 144,
+      customerId: selectedCustomerId,
       accountType: "Account",
       displayName: selectedDisplayName,
       accountCode: selectedAccountCode,
@@ -319,6 +329,8 @@ export default function OWAForm({ emailData }: OWAFormProps) {
                   No informar
                 </Button>
 
+                <ReplyManual emailId={emailData?.id} />
+
                 {/* 👇 AQUÍ está la clave */}
                 <InformarButton emailId={emailData?.id} />
               </div>
@@ -345,7 +357,8 @@ export default function OWAForm({ emailData }: OWAFormProps) {
           <ConvenioDialog
             open={openConvenioDialog}
             onOpenChange={setOpenConvenioDialog}
-            onSelect={(code, name) => {
+            onSelect={(customerId, code, name) => {
+              setCustomerId(customerId);
               setSelectedAccountCode(code);
               setSelectedDisplayName(name);
               setConvenio(code ? `${code} - ${name}` : name);
@@ -412,9 +425,25 @@ export default function OWAForm({ emailData }: OWAFormProps) {
             </div>
           ))}
 
-          <Button onClick={() => handleGuardar(data[0])} disabled={saving}>
-            {saving ? "Creando..." : "Crear Reserva"}
-          </Button>
+          <div className="flex justify-between">
+            <Button onClick={() => handleGuardar(data[0])} disabled={saving}>
+              {saving ? "Creando..." : "Crear Reserva"}
+            </Button>
+
+            <CompleteButton
+              emailId={emailData?.id} // Este se usa para Informar
+              onNoInform={async () => {
+                try {
+                  await axios.put(
+                    `https://ecotrans-intranet-370980788525.europe-west1.run.app/headers/estado/${params.id}`,
+                    { estado: 2 }
+                  );
+                } catch (error) {
+                  console.error("Error actualizando estado:", error);
+                }
+              }}
+            />
+          </div>
         </CardContent>
       </Card>
     </div>

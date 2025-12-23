@@ -1,4 +1,5 @@
 "use client";
+
 import { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
@@ -6,7 +7,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -16,20 +16,20 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2, SearchCheck, Search } from "lucide-react";
 
 import {
   InputGroup,
   InputGroupAddon,
-  InputGroupButton,
   InputGroupInput,
-  InputGroupText,
-  InputGroupTextarea,
 } from "@/components/ui/input-group";
 
+/* =======================
+   Interfaces
+======================= */
+
 interface Customer {
-  id: number;
+  id: number; // 👈 customerId
   displayName: string;
   accountCode: string | null;
   suspended: boolean;
@@ -40,8 +40,16 @@ interface ConvenioDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   jwtToken?: string;
-  onSelect: (accountCode: string | null, displayName: string) => void;
+  onSelect: (
+    customerId: number,
+    accountCode: string | null,
+    displayName: string
+  ) => void;
 }
+
+/* =======================
+   Component
+======================= */
 
 export default function ConvenioDialog({
   open,
@@ -52,6 +60,10 @@ export default function ConvenioDialog({
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
+
+  /* =======================
+     Fetch customers
+  ======================= */
 
   useEffect(() => {
     if (!open) return;
@@ -68,20 +80,30 @@ export default function ConvenioDialog({
         setLoading(false);
       }
     }
+
     fetchCustomers();
   }, [open]);
 
+  /* =======================
+     Filtrado
+  ======================= */
+
   const filtered = useMemo(() => {
+    const term = search.toLowerCase();
+
     return customers
-      .filter((c) => c.suspended === false) // <-- FILTRA SOLO ACTIVOS
+      .filter((c) => c.suspended === false)
       .filter((c) => c.active === true)
       .filter((c) => {
-        const term = search.toLowerCase();
         const nameMatch = c.displayName.toLowerCase().includes(term);
         const codeMatch = (c.accountCode ?? "").toLowerCase().includes(term);
         return nameMatch || codeMatch;
       });
   }, [customers, search]);
+
+  /* =======================
+     Render
+  ======================= */
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -91,7 +113,9 @@ export default function ConvenioDialog({
             Seleccionar Convenio
           </DialogTitle>
         </DialogHeader>
+
         <div className="flex flex-col gap-4">
+          {/* Buscador */}
           <InputGroup className="bg-white">
             <InputGroupInput
               placeholder="Buscar convenio..."
@@ -104,30 +128,29 @@ export default function ConvenioDialog({
             </InputGroupAddon>
           </InputGroup>
 
+          {/* Tabla */}
           {loading ? (
-            <div className="space-y-4">
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-green-600" />
-                <span className="ml-3 text-gray-600">
-                  Cargando convenios...
-                </span>
-              </div>
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-green-600" />
+              <span className="ml-3 text-gray-600">Cargando convenios...</span>
             </div>
           ) : (
             <div className="max-h-80 overflow-y-auto overflow-x-auto border rounded-lg">
               <Table className="min-w-[800px]">
                 <TableHeader>
                   <TableRow className="bg-gray-200">
+                    {/* <TableHead>Customer ID</TableHead> */}
                     <TableHead>Account Code</TableHead>
                     <TableHead>Display Name</TableHead>
-                    <TableHead>Acción</TableHead>
+                    <TableHead className="text-center">Acción</TableHead>
                   </TableRow>
                 </TableHeader>
+
                 <TableBody>
                   {filtered.length === 0 ? (
                     <TableRow>
                       <TableCell
-                        colSpan={3}
+                        colSpan={4}
                         className="text-center text-gray-500 py-8"
                       >
                         No se encontraron convenios
@@ -136,21 +159,27 @@ export default function ConvenioDialog({
                   ) : (
                     filtered.map((customer) => (
                       <TableRow key={customer.id}>
+                        {/* <TableCell className="font-mono text-xs">
+                          {customer.id}
+                        </TableCell> */}
+
                         <TableCell className="font-medium">
                           {customer.accountCode ?? "—"}
                         </TableCell>
+
                         <TableCell>{customer.displayName}</TableCell>
 
-                        <TableCell>
+                        <TableCell className="text-center">
                           <Button
+                            size="icon-lg"
                             onClick={() => {
                               onSelect(
+                                customer.id,
                                 customer.accountCode,
                                 customer.displayName
                               );
                               onOpenChange(false);
                             }}
-                            size="icon-lg"
                           >
                             <SearchCheck />
                           </Button>
