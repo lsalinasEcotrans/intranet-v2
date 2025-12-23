@@ -25,6 +25,7 @@ import FechaField from "../fields/FechaField";
 
 import { InformarButton } from "../owa-actions/InformarButton";
 import { ReplyManual } from "../owa-actions/ReplyManual";
+import { CompleteButton } from "../owa-actions/CompleteButton";
 
 import { Loader2 } from "lucide-react";
 
@@ -424,9 +425,25 @@ export default function OWAForm({ emailData }: OWAFormProps) {
             </div>
           ))}
 
-          <Button onClick={() => handleGuardar(data[0])} disabled={saving}>
-            {saving ? "Creando..." : "Crear Reserva"}
-          </Button>
+          <div className="flex justify-between">
+            <Button onClick={() => handleGuardar(data[0])} disabled={saving}>
+              {saving ? "Creando..." : "Crear Reserva"}
+            </Button>
+
+            <CompleteButton
+              emailId={emailData?.id} // Este se usa para Informar
+              onNoInform={async () => {
+                try {
+                  await axios.put(
+                    `https://ecotrans-intranet-370980788525.europe-west1.run.app/headers/estado/${params.id}`,
+                    { estado: 2 }
+                  );
+                } catch (error) {
+                  console.error("Error actualizando estado:", error);
+                }
+              }}
+            />
+          </div>
         </CardContent>
       </Card>
     </div>
