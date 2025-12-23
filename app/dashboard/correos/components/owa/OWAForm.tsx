@@ -24,6 +24,7 @@ import DireccionField from "../fields/DireccionField";
 import FechaField from "../fields/FechaField";
 
 import { InformarButton } from "../owa-actions/InformarButton";
+import { ReplyManual } from "../owa-actions/ReplyManual";
 
 import { Loader2 } from "lucide-react";
 
@@ -113,6 +114,8 @@ export default function OWAForm({ emailData }: OWAFormProps) {
   const [selectedDisplayName, setSelectedDisplayName] = useState<string | null>(
     null
   );
+  const [customerId, setCustomerId] = useState<number | null>(null);
+
   const [openConvenioDialog, setOpenConvenioDialog] = useState(false);
 
   const [nota, setNota] = useState("");
@@ -279,8 +282,70 @@ export default function OWAForm({ emailData }: OWAFormProps) {
   if (error) return <p className="text-red-500">{error}</p>;
   if (!data) return null;
 
+  function buildBookingJson(
+    item: MensajeIAItem,
+    pickupDueTime: string,
+    nota: string,
+    origen: { text: string; latitud: number; longitud: number },
+    destino: { text: string; latitud: number; longitud: number },
+    selectedDisplayName: string | null,
+    selectedAccountCode: string | null
+  ) {
+    return {
+      companyId: 1,
+      paymentType: "Account",
+      pickupDueTime: toChileISOString(pickupDueTime),
+      name: item.nombrePasajero ?? "",
+      passengers: 1,
+      telephoneNumber: item.Telefono ?? "",
+      customerId: customerId,
+      accountType: "Account",
+      displayName: selectedDisplayName,
+      accountCode: selectedAccountCode,
+      driverNote: nota,
+      officeNote: "SERV. POR SISTEMA OWA",
+      priority: 5,
+      pickup: {
+        address: {
+          text: origen.text || item.pickup.text,
+          coordinate: {
+            latitude: origen.latitud || item.pickup.latitud,
+            longitude: origen.longitud || item.pickup.longitud,
+          },
+        },
+        type: "Pickup",
+      },
+      destination: {
+        address: {
+          text: destino.text || item.destination.text,
+          coordinate: {
+            latitude: destino.latitud || item.destination.latitud,
+            longitude: destino.longitud || item.destination.longitud,
+          },
+        },
+        type: "Destination",
+      },
+      hold: true,
+    };
+  }
+
   return (
     <div className="py-2 space-y-4">
+      <pre className="max-h-[400px] overflow-auto rounded-md bg-black text-green-400 p-4 text-xs">
+        {JSON.stringify(
+          buildBookingJson(
+            data[0],
+            pickupDueTime,
+            nota,
+            origen,
+            destino,
+            selectedDisplayName,
+            selectedAccountCode
+          ),
+          null,
+          2
+        )}
+      </pre>
       <Dialog open={showResultDialog}>
         <DialogContent
           onInteractOutside={(e) => e.preventDefault()}
@@ -319,6 +384,8 @@ export default function OWAForm({ emailData }: OWAFormProps) {
                   No informar
                 </Button>
 
+                <ReplyManual emailId={emailData?.id} />
+
                 {/* 👇 AQUÍ está la clave */}
                 <InformarButton emailId={emailData?.id} />
               </div>
@@ -345,7 +412,8 @@ export default function OWAForm({ emailData }: OWAFormProps) {
           <ConvenioDialog
             open={openConvenioDialog}
             onOpenChange={setOpenConvenioDialog}
-            onSelect={(code, name) => {
+            onSelect={(customerId, code, name) => {
+              setCustomerId(customerId);
               setSelectedAccountCode(code);
               setSelectedDisplayName(name);
               setConvenio(code ? `${code} - ${name}` : name);
