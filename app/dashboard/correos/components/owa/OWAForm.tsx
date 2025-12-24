@@ -109,16 +109,16 @@ export default function OWAForm({ emailData }: OWAFormProps) {
   const [error, setError] = useState<string | null>(null);
 
   const [convenio, setConvenio] = useState("");
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(
+  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(
     null
   );
+
   const [selectedAccountCode, setSelectedAccountCode] = useState<string | null>(
     null
   );
   const [selectedDisplayName, setSelectedDisplayName] = useState<string | null>(
     null
   );
-  const [customerId, setCustomerId] = useState<number | null>(null);
 
   const [openConvenioDialog, setOpenConvenioDialog] = useState(false);
 
@@ -358,7 +358,7 @@ export default function OWAForm({ emailData }: OWAFormProps) {
             open={openConvenioDialog}
             onOpenChange={setOpenConvenioDialog}
             onSelect={(customerId, code, name) => {
-              setCustomerId(customerId);
+              setSelectedCustomerId(customerId); // ✅ CLAVE
               setSelectedAccountCode(code);
               setSelectedDisplayName(name);
               setConvenio(code ? `${code} - ${name}` : name);
