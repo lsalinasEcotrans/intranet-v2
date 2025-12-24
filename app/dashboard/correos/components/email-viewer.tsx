@@ -67,11 +67,25 @@ export default function EmailViewer({
                 {emailData?.subject || "Sin asunto"}
               </h2>
             </div>
-            <Button
+            {/* <Button
               variant="outline"
               size="icon"
               onClick={onFullscreen}
               title="Ver a pantalla completa"
+            >
+              <Maximize2 className="w-4 h-4" />
+            </Button> */}
+            <Button
+              variant="outline"
+              size="icon"
+              title="Abrir en ventana popup"
+              onClick={() => {
+                window.open(
+                  `/popup/${params.id}?intencion=${intencion}&popup=true`,
+                  "owa-popup",
+                  "width=1200,height=800,resizable=yes,scrollbars=yes"
+                );
+              }}
             >
               <Maximize2 className="w-4 h-4" />
             </Button>
