@@ -3,17 +3,23 @@
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import axios from "axios";
+
 import FormTurnoHCreate from "./forms/FormTurnoHCreate";
 import FormTurnoHEdit from "./forms/FormTurnoHEdit";
+import Form4x4 from "./forms/Form4x4";
 
 import { Loader2 } from "lucide-react";
 
+interface DetalleDia {
+  dia: string;
+  fecha: string;
+}
+
 interface DetalleViaje {
-  dias: {
-    dia: string;
-    fecha: string;
-  }[];
-  modo: string;
+  dias?: DetalleDia[];
+  modo?: string;
+  horas?: { subida: string; bajada: string };
+  fechas?: { inicio: string; termino: string };
 }
 
 interface ViajeResponse {
@@ -41,9 +47,6 @@ export default function ViajePage() {
         const res = await axios.get<ViajeResponse>(
           `https://ecotrans-pasajero-370980788525.europe-west1.run.app/dataPassenger/viaje-admin/${id_info}`,
         );
-
-        console.log("DATA API:", res.data); // 🔎 Debug
-
         setData(res.data);
       } catch (err) {
         console.error("Error cargando viaje:", err);
@@ -78,6 +81,7 @@ export default function ViajePage() {
     );
   }
 
+  // ────────────── ERROR ──────────────
   if (error || !data?.ok) {
     return <div className="p-8 text-red-500">Error cargando información</div>;
   }
@@ -85,37 +89,44 @@ export default function ViajePage() {
   const turno = data.turno?.trim();
   const mode = data.mode?.trim();
 
-  // ============================
-  // TURNO H - CREATE
-  // ============================
-
+  // ────────────── TURNO H ──────────────
   if (turno === "TurnoH" && mode === "create") {
-    return (
-      <div className="p-8">
-        <FormTurnoHCreate authId={data.auth_id} grupoNumero={data.grupo} />
-      </div>
-    );
+    return <FormTurnoHCreate authId={data.auth_id} grupoNumero={data.grupo} />;
   }
-
-  // ============================
-  // TURNO H - EDIT
-  // ============================
 
   if (turno === "TurnoH" && mode === "edit") {
     return (
-      <div className="p-8">
-        <FormTurnoHEdit
-          authId={data.auth_id}
-          grupoNumero={data.grupo}
-          detalleViaje={data.detalle_viaje}
-        />
-      </div>
+      <FormTurnoHEdit
+        authId={data.auth_id}
+        grupoNumero={data.grupo}
+        detalleViaje={data.detalle_viaje}
+      />
     );
   }
 
-  // ============================
-  // OTROS TURNOS (4x4 / 7x7 futuro)
-  // ============================
+  // ────────────── 4x4 / 7x7 ──────────────
+  if ((turno === "4x4" || turno === "7x7") && mode === "create") {
+    return (
+      <Form4x4
+        authId={data.auth_id}
+        grupoNumero={data.grupo}
+        tipoTurno={turno}
+        detalleReserva={data.detalle_viaje || undefined} // si existe, para edit
+      />
+    );
+  }
 
+  if ((turno === "4x4" || turno === "7x7") && mode === "edit") {
+    return (
+      <Form4x4
+        authId={data.auth_id}
+        grupoNumero={data.grupo}
+        tipoTurno={turno}
+        detalleReserva={data.detalle_viaje || undefined} // si existe, para edit
+      />
+    );
+  }
+
+  // ────────────── CASO NO IMPLEMENTADO ──────────────
   return <div className="p-8">Turno "{turno}" no implementado aún.</div>;
 }

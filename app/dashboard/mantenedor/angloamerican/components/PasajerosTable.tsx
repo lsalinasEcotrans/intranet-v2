@@ -245,15 +245,14 @@ export function PasajerosTable() {
 
   const visibleColumns: ColumnDef[] = useMemo(() => {
     const baseColumns: ColumnDef[] = [
-      { key: "id_info", label: "ID" },
-      { key: "rut", label: "RUT" },
+      { key: "rut", label: "Rut" },
       { key: "nombre", label: "Nombre" },
       { key: "contacto", label: "Contacto" },
       { key: "rol", label: "Rol" },
       { key: "turno", label: "Turno" },
       { key: "grupo_numero", label: "Grupo" },
-      { key: "direccion_origen", label: "Origen" },
       { key: "centro_costo", label: "CC" },
+      { key: "direccion_origen", label: "Origen" },
       { key: "direccion_destino", label: "Destino" },
       {
         key: "hora_programada",
@@ -262,21 +261,17 @@ export function PasajerosTable() {
       },
     ];
 
-    if (!turnoFiltro) return baseColumns;
+    // Define columnas a ocultar según el turno
+    const columnasAocultarPorTurno: Record<string, ColumnKey[]> = {
+      "4x4": ["grupo_numero"], // ocultar Grupo y Origen
+      "7x7": ["centro_costo", "direccion_destino"], // ocultar CC y Destino
+      TurnoH: [], // no ocultar nada
+    };
 
-    switch (turnoFiltro) {
-      case "TurnoH":
-        return baseColumns;
+    const columnasAocultar =
+      columnasAocultarPorTurno[turnoFiltro || "TurnoH"] || [];
 
-      case "4x4":
-        return baseColumns.filter((col) => col.key !== "grupo_numero");
-
-      case "7x7":
-        return baseColumns.filter((col) => col.key !== "centro_costo");
-
-      default:
-        return baseColumns;
-    }
+    return baseColumns.filter((col) => !columnasAocultar.includes(col.key));
   }, [turnoFiltro]);
 
   const filteredData = useMemo(() => {
@@ -496,7 +491,6 @@ export function PasajerosTable() {
             ) : (
               paginatedData.map((p) => (
                 <TableRow key={p.id_info}>
-                  <TableCell className="font-medium">{p.id_info}</TableCell>
                   <TableCell>{p.rut}</TableCell>
                   <TableCell className="font-medium">{p.nombre}</TableCell>
                   <TableCell>{p.contacto}</TableCell>
@@ -510,11 +504,13 @@ export function PasajerosTable() {
                       {formatTurno(p.turno)}
                     </Badge>
                   </TableCell>
-                  <TableCell>{p.grupo_numero}</TableCell>
+                  {turnoFiltro !== "4x4" && (
+                    <TableCell>{p.grupo_numero}</TableCell>
+                  )}
+                  <TableCell>{p.centro_costo}</TableCell>
                   <TableCell className="max-w-[160px] truncate">
                     {p.direccion_origen}
                   </TableCell>
-                  <TableCell>{p.centro_costo}</TableCell>
                   <TableCell className="max-w-[160px] truncate">
                     {p.direccion_destino}
                   </TableCell>
