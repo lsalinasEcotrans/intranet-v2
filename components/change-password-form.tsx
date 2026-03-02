@@ -64,10 +64,15 @@ export function ChangePasswordForm() {
     validateToken()
   }, [token])
 
+  const isPasswordValid = (p: string): boolean => {
+    return /^(?=.*[A-Z])(?=.*[0-9]).{6,}$/.test(p);
+  };
+
   const passwordsMatch =
     newPassword === confirmPassword && confirmPassword.length > 0
   const canSubmit =
-    newPassword.length >= 8 &&
+    isPasswordValid(newPassword) &&
+    newPassword.length >= 6 &&
     passwordsMatch &&
     !loading
 
@@ -196,7 +201,7 @@ export function ChangePasswordForm() {
                 placeholder="Ingresa tu nueva contraseña"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                maxLength={6}
+                minLength={6}
                 required
                 disabled={loading}
               />
@@ -231,7 +236,7 @@ export function ChangePasswordForm() {
                 placeholder="Repite tu nueva contraseña"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                maxLength={6}
+                minLength={6}
                 required
                 disabled={loading}
                 className={cn(
