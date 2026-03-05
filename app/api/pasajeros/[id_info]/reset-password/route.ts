@@ -1,24 +1,32 @@
 import axios from "axios";
+import { NextRequest, NextResponse } from "next/server";
 
 const API_URL =
   "https://ecotrans-pasajero-370980788525.europe-west1.run.app/pasajeros";
 
 export async function PATCH(
-  request: Request,
-  { params }: { params: { id_info: string } },
+  request: NextRequest,
+  context: { params: Promise<{ id_info: string }> },
 ) {
   try {
+    const { id_info } = await context.params;
+
     const { data } = await axios.patch(
-      `${API_URL}/${params.id_info}/reset-password`,
+      `${API_URL}/${id_info}/reset-password`,
     );
-    return Response.json(data);
+
+    return NextResponse.json(data);
   } catch (err) {
     if (axios.isAxiosError(err) && err.response) {
-      return Response.json(
+      return NextResponse.json(
         { error: "Error al resetear contraseña" },
         { status: err.response.status },
       );
     }
-    return Response.json({ error: "Error de conexión" }, { status: 500 });
+
+    return NextResponse.json(
+      { error: "Error de conexión" },
+      { status: 500 },
+    );
   }
 }
