@@ -4,10 +4,14 @@ import { useState, useEffect, useMemo } from "react";
 import { addDays, startOfWeek, format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useRouter } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import { Ban, ArrowRight, Bus, ChevronLeft } from "lucide-react";
+
 import {
   Dialog,
   DialogContent,
@@ -17,102 +21,108 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
+import { ShiftGrid, DIAS } from "@/components/turno-h/shift-grid";
+import { ShiftSummary } from "@/components/turno-h/shift-summary";
+import type { Turno, TurnoSeleccionado } from "@/components/turno-h/shift-grid";
+
 interface Props {
   authId: number;
   grupoNumero: number;
-  detalleViaje: any; // lo que viene desde la API
+  detalleViaje: any;
 }
-
-const DIAS = [
-  { key: "lunes", label: "Lunes", offset: 0 },
-  { key: "martes", label: "Martes", offset: 1 },
-  { key: "miercoles", label: "Miércoles", offset: 2 },
-  { key: "jueves", label: "Jueves", offset: 3 },
-  { key: "viernes", label: "Viernes", offset: 4 },
-];
 
 export default function FormTurnoHEdit({
   authId,
   grupoNumero,
   detalleViaje,
 }: Props) {
-  const [diasSeleccionados, setDiasSeleccionados] = useState<string[]>([]);
+  const [turnosSeleccionados, setTurnosSeleccionados] = useState<
+    TurnoSeleccionado[]
+  >([]);
   const [noViaja, setNoViaja] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  /* ============================
-     🔹 PRECARGAR DATOS DESDE API
-     ============================ */
+  const lunesSemanaSiguiente = useMemo(
+    () => addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), 7),
+    [],
+  );
+
+  /* ── Precargar datos desde API ─────────────────────────────────────────── */
   useEffect(() => {
     if (!detalleViaje) return;
 
     if (detalleViaje.modo === "no_viaja") {
       setNoViaja(true);
-      setDiasSeleccionados([]);
+      setTurnosSeleccionados([]);
+      return;
     }
 
-    if (detalleViaje.modo === "dias_seleccionados") {
-      const diasGuardados = detalleViaje.dias.map((d: any) =>
-        d.dia
+    if (detalleViaje.modo === "dias_seleccionados" && detalleViaje.dias) {
+      const turnos: TurnoSeleccionado[] = [];
+
+      detalleViaje.dias.forEach((d: any) => {
+        const diaKey = d.dia
           .toLowerCase()
           .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, ""),
-      );
+          .replace(/[\u0300-\u036f]/g, "");
 
-      setDiasSeleccionados(diasGuardados);
+        if (d.turnos && Array.isArray(d.turnos)) {
+          d.turnos.forEach((t: Turno) => {
+            turnos.push({ dia: diaKey, turno: t });
+          });
+        } else {
+          // Fallback: si no tiene turnos, asumir manana
+          turnos.push({ dia: diaKey, turno: "manana" });
+        }
+      });
+
+      setTurnosSeleccionados(turnos);
     }
   }, [detalleViaje]);
 
-  /* ============================
-     🔹 CALCULAR SEMANA SIGUIENTE
-     ============================ */
+  /* ── Fechas calculadas ─────────────────────────────────────────────────── */
   const fechasCalculadas = useMemo(() => {
-    if (diasSeleccionados.length === 0) return [];
-
-    const lunesSemanaSiguiente = addDays(
-      startOfWeek(new Date(), { weekStartsOn: 1 }),
-      7,
-    );
-
-    return DIAS.filter((d) => diasSeleccionados.includes(d.key)).map((d) => ({
-      dia: d.label,
+    if (turnosSeleccionados.length === 0) return [];
+    const diasUnicos = [...new Set(turnosSeleccionados.map((t) => t.dia))];
+    return DIAS.filter((d) => diasUnicos.includes(d.key)).map((d) => ({
+      dia: d.fullLabel,
       fecha: addDays(lunesSemanaSiguiente, d.offset),
+      turnos: turnosSeleccionados
+        .filter((t) => t.dia === d.key)
+        .map((t) => t.turno),
     }));
-  }, [diasSeleccionados]);
+  }, [turnosSeleccionados, lunesSemanaSiguiente]);
 
-  const toggleDia = (dia: string) => {
+  const toggleTurno = (dia: string, turno: Turno) => {
     if (noViaja) return;
-
-    setDiasSeleccionados((prev) =>
-      prev.includes(dia) ? prev.filter((d) => d !== dia) : [...prev, dia],
-    );
+    setTurnosSeleccionados((prev) => {
+      const exists = prev.some((t) => t.dia === dia && t.turno === turno);
+      if (exists)
+        return prev.filter((t) => !(t.dia === dia && t.turno === turno));
+      return [...prev, { dia, turno }];
+    });
   };
 
   const confirmarNoViaja = () => {
     setNoViaja(true);
-    setDiasSeleccionados([]);
+    setTurnosSeleccionados([]);
     setOpenDialog(false);
   };
 
-  /* ============================
-     🔹 ACTUALIZAR TURNO H
-     ============================ */
+  const cancelarNoViaja = () => setNoViaja(false);
+
+  /* ── Actualizar Turno H ────────────────────────────────────────────────── */
   const handleActualizar = async () => {
     if (!noViaja && fechasCalculadas.length === 0) {
-      toast.error("Selecciona al menos un día o indica que no viajarás");
+      toast.error("Selecciona al menos un turno o indica que no viajaras");
       return;
     }
 
     let detalle_json;
 
     if (noViaja) {
-      const lunesSemanaSiguiente = addDays(
-        startOfWeek(new Date(), { weekStartsOn: 1 }),
-        7,
-      );
-
       detalle_json = {
         modo: "no_viaja",
         semana: format(lunesSemanaSiguiente, "yyyy-MM-dd"),
@@ -123,16 +133,10 @@ export default function FormTurnoHEdit({
         dias: fechasCalculadas.map((f) => ({
           dia: f.dia,
           fecha: format(f.fecha, "yyyy-MM-dd"),
+          turnos: f.turnos,
         })),
       };
     }
-
-    const payload = {
-      auth_id: authId,
-      grupo_numero: grupoNumero,
-      tipo_turno: "H",
-      detalle_json,
-    };
 
     try {
       setLoading(true);
@@ -154,105 +158,151 @@ export default function FormTurnoHEdit({
       if (!res.ok) throw new Error(data.detail || "Error al actualizar");
 
       toast.success("Turno H actualizado correctamente");
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Error desconocido";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   };
 
-  /* ============================
-     🔹 UI
-     ============================ */
+  /* ── UI ────────────────────────────────────────────────────────────────── */
+  const selectedCount = turnosSeleccionados.length;
+
   return (
-    <div className="max-w-4xl mx-auto p-8 space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
-          <ChevronLeft className="h-5 w-5" />
-        </Button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold tracking-tight">Editar Pasajero</h1>
+    <div className="min-h-screen bg-background">
+      <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+        {/* Header */}
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.back()}
+            className="rounded-xl"
+          >
+            <ChevronLeft className="size-5" />
+          </Button>
+          <div className="rounded-xl bg-primary/10 p-2.5">
+            <Bus className="size-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">
+              Editar Turno H
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Semana del{" "}
+              {format(lunesSemanaSiguiente, "dd MMM", { locale: es })}
+              {" - "}
+              {format(addDays(lunesSemanaSiguiente, 4), "dd MMM yyyy", {
+                locale: es,
+              })}
+            </p>
+          </div>
+        </div>
+
+        {/* Two-column layout */}
+        <div className="flex flex-col lg:flex-row gap-6 lg:items-start">
+          {/* Left column - Shift selection */}
+          <div className="flex-1 min-w-0 space-y-4">
+            <Card className="border-0 shadow-lg overflow-hidden">
+              <CardContent className="p-5 md:p-6 space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-foreground">
+                    Modifica tus turnos
+                  </h2>
+                  {selectedCount > 0 && (
+                    <Badge variant="secondary" className="text-xs">
+                      {selectedCount} turno{selectedCount > 1 ? "s" : ""}
+                    </Badge>
+                  )}
+                </div>
+
+                <ShiftGrid
+                  turnosSeleccionados={turnosSeleccionados}
+                  noViaja={noViaja}
+                  onToggle={toggleTurno}
+                />
+
+                <Separator />
+
+                {/* No travel toggle */}
+                <div>
+                  {!noViaja ? (
+                    <button
+                      type="button"
+                      onClick={() => setOpenDialog(true)}
+                      className="flex items-center gap-3 w-full rounded-xl border border-dashed border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                    >
+                      <Ban className="size-4 shrink-0" />
+                      <span className="font-medium">
+                        No viajare esta semana
+                      </span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={cancelarNoViaja}
+                      className="flex items-center gap-3 w-full rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-primary hover:bg-primary/10 transition-colors cursor-pointer"
+                    >
+                      <ArrowRight className="size-4 shrink-0" />
+                      <span className="font-medium">Cancelar decision</span>
+                    </button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right column - Summary + Update */}
+          <div className="lg:w-80 xl:w-96 lg:sticky lg:top-8 space-y-4">
+            <ShiftSummary
+              noViaja={noViaja}
+              fechasCalculadas={fechasCalculadas}
+            />
+
+            {/* Update button */}
+            <Button
+              className="w-full h-12 text-base font-semibold rounded-xl shadow-lg shadow-primary/20 cursor-pointer"
+              onClick={handleActualizar}
+              disabled={loading}
+              size="lg"
+            >
+              {loading ? "Actualizando..." : "Actualizar Turno H"}
+            </Button>
+          </div>
         </div>
       </div>
-      <Card>
-        <CardContent className="space-y-6">
-          {/* Selección días */}
-          <div>
-            <p className="font-semibold mb-3">
-              Modifica los días de la semana siguiente
-            </p>
 
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-              {DIAS.map((dia) => (
-                <label key={dia.key} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    disabled={noViaja}
-                    checked={diasSeleccionados.includes(dia.key)}
-                    onChange={() => toggleDia(dia.key)}
-                  />
-                  {dia.label}
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <Button
-            variant="destructive"
-            type="button"
-            onClick={() => setOpenDialog(true)}
-          >
-            No viajaré esta semana
-          </Button>
-
-          {/* Resumen */}
-          <div className="rounded-lg border p-4 bg-muted/50 space-y-2">
-            {noViaja ? (
-              <p className="text-red-600 font-medium">
-                No será considerado para servicios esta semana.
-              </p>
-            ) : fechasCalculadas.length === 0 ? (
-              <p className="text-muted-foreground">
-                No hay días seleccionados.
-              </p>
-            ) : (
-              fechasCalculadas.map((f) => (
-                <p key={f.dia}>
-                  <span className="font-medium">{f.dia}:</span>{" "}
-                  {format(f.fecha, "dd 'de' MMMM yyyy", { locale: es })}
-                </p>
-              ))
-            )}
-          </div>
-
-          <Button
-            className="w-full h-12"
-            onClick={handleActualizar}
-            disabled={loading}
-          >
-            {loading ? "Actualizando..." : "Actualizar Turno H"}
-          </Button>
-        </CardContent>
-      </Card>
-
+      {/* Dialog */}
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Confirmar</DialogTitle>
-            <DialogDescription>
-              Si confirmas que no viajarás esta semana, no serás considerado
-              para servicios.
+            <div className="mx-auto rounded-full bg-destructive/10 p-3 mb-2">
+              <Ban className="size-6 text-destructive" />
+            </div>
+            <DialogTitle className="text-center">
+              {"Confirmar que no viajaras?"}
+            </DialogTitle>
+            <DialogDescription className="text-center">
+              Si confirmas que no viajaras esta semana, no seras considerado
+              para ningun servicio.
             </DialogDescription>
           </DialogHeader>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenDialog(false)}>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setOpenDialog(false)}
+              className="flex-1"
+            >
               Cancelar
             </Button>
-
-            <Button variant="destructive" onClick={confirmarNoViaja}>
-              Confirmar
+            <Button
+              variant="destructive"
+              onClick={confirmarNoViaja}
+              className="flex-1"
+            >
+              Si, no viajare
             </Button>
           </DialogFooter>
         </DialogContent>
