@@ -347,29 +347,6 @@ export default function EditarPasajeroPage() {
               </h1>
               <p className="text-sm text-muted-foreground">ID #{id_info}</p>
             </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" disabled={isResetting}>
-                  <KeyRound className="mr-2 h-4 w-4" />
-                  Resetear clave
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>¿Resetear contraseña?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Se restaurará la contraseña por defecto y el pasajero deberá
-                    cambiarla en su próximo inicio de sesión.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleResetPassword}>
-                    Confirmar reset
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
           </div>
 
           {/* Formulario */}

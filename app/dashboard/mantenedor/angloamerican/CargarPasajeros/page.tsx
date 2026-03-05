@@ -5,7 +5,7 @@ import axios from "axios";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { CheckCheck, Upload, Download, Zap, AlertCircle } from "lucide-react";
+import { CheckCheck, Upload, Download, Zap, AlertCircle, Pencil, X } from "lucide-react";
 
 interface Suggestion {
   description: string;
@@ -39,6 +39,10 @@ export default function CargaMasivaPasajeros() {
   const [rows, setRows] = useState<PasajeroRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [payloadPreview, setPayloadPreview] = useState<any[]>([]);
+  const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const [retryingRows, setRetryingRows] = useState<Set<string>>(new Set());
+  const [editingFields, setEditingFields] = useState<Record<string, string>>({});
+  const [sendProgress, setSendProgress] = useState({ current: 0, total: 0 });
 
   const formatHora = (excelNum: number | string) => {
     if (typeof excelNum === "string") return excelNum;
@@ -86,6 +90,7 @@ export default function CargaMasivaPasajeros() {
 
         const parsedRows: PasajeroRow[] = [];
         setLoading(true);
+        setProgress({ current: 0, total: jsonData.length });
 
         for (let i = 0; i < jsonData.length; i++) {
           const row: any = jsonData[i];
@@ -127,10 +132,12 @@ export default function CargaMasivaPasajeros() {
           }
 
           parsedRows.push(newRow);
+          setProgress({ current: i + 1, total: jsonData.length });
         }
 
         setRows(parsedRows);
         setLoading(false);
+        setProgress({ current: 0, total: 0 });
       };
 
       reader.readAsBinaryString(file);
@@ -138,6 +145,117 @@ export default function CargaMasivaPasajeros() {
     },
     [],
   );
+
+  const handleRetry = async (
+    rowIndex: number,
+    type: "origen" | "destino",
+  ) => {
+    const row = rows[rowIndex];
+    const address =
+      type === "origen" ? row.direccion_origen : row.direccion_destino;
+    const key = `${rowIndex}-${type}`;
+
+    setRetryingRows((prev) => new Set(prev).add(key));
+
+    const results = await fetchSuggestions(address);
+
+    setRows((prev) => {
+      const newRows = [...prev];
+      if (results.length > 0) {
+        const first = results[0];
+        if (first.coordinate) {
+          if (type === "origen") {
+            newRows[rowIndex].latOrigen = first.coordinate.latitude;
+            newRows[rowIndex].lngOrigen = first.coordinate.longitude;
+            newRows[rowIndex].origenSuggestions = [];
+          } else {
+            newRows[rowIndex].latDestino = first.coordinate.latitude;
+            newRows[rowIndex].lngDestino = first.coordinate.longitude;
+            newRows[rowIndex].destinoSuggestions = [];
+          }
+        } else {
+          if (type === "origen") {
+            newRows[rowIndex].origenSuggestions = results;
+          } else {
+            newRows[rowIndex].destinoSuggestions = results;
+          }
+        }
+      } else {
+        toast.error(`No se encontraron resultados para: ${address}`);
+      }
+      return newRows;
+    });
+
+    setRetryingRows((prev) => {
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+  };
+
+  const handleSaveEdit = async (
+    rowIndex: number,
+    type: "origen" | "destino",
+  ) => {
+    const key = `${rowIndex}-${type}`;
+    const newAddress = editingFields[key]?.trim();
+    if (!newAddress) return;
+
+    // Update the address in the row
+    setRows((prev) => {
+      const newRows = [...prev];
+      if (type === "origen") {
+        newRows[rowIndex].direccion_origen = newAddress;
+      } else {
+        newRows[rowIndex].direccion_destino = newAddress;
+      }
+      return newRows;
+    });
+
+    // Clear edit mode and retry with new address
+    setEditingFields((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+
+    setRetryingRows((prev) => new Set(prev).add(key));
+
+    const results = await fetchSuggestions(newAddress);
+
+    setRows((prev) => {
+      const newRows = [...prev];
+      if (results.length > 0) {
+        const first = results[0];
+        if (first.coordinate) {
+          if (type === "origen") {
+            newRows[rowIndex].latOrigen = first.coordinate.latitude;
+            newRows[rowIndex].lngOrigen = first.coordinate.longitude;
+            newRows[rowIndex].origenSuggestions = [];
+          } else {
+            newRows[rowIndex].latDestino = first.coordinate.latitude;
+            newRows[rowIndex].lngDestino = first.coordinate.longitude;
+            newRows[rowIndex].destinoSuggestions = [];
+          }
+        } else {
+          if (type === "origen") {
+            newRows[rowIndex].origenSuggestions = results;
+          } else {
+            newRows[rowIndex].destinoSuggestions = results;
+          }
+        }
+      } else {
+        toast.error(`No se encontraron resultados para: ${newAddress}`);
+      }
+      return newRows;
+    });
+
+    setRetryingRows((prev) => {
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+  };
 
   const handleSelectSuggestion = async (
     rowIndex: number,
@@ -201,6 +319,7 @@ export default function CargaMasivaPasajeros() {
 
   const handleSendToAPI = async () => {
     setLoading(true);
+    setSendProgress({ current: 0, total: rows.length });
     const batchSize = 3;
 
     for (let i = 0; i < rows.length; i += batchSize) {
@@ -236,10 +355,16 @@ export default function CargaMasivaPasajeros() {
         console.error("Error enviando batch:", err);
         toast.error("Error enviando algunos pasajeros");
       }
+
+      setSendProgress((prev) => ({
+        ...prev,
+        current: Math.min(i + batchSize, rows.length),
+      }));
     }
 
     toast.success("Todos los pasajeros enviados correctamente");
     setLoading(false);
+    setSendProgress({ current: 0, total: 0 });
   };
 
   const handleDownloadTemplate = () => {
@@ -250,7 +375,7 @@ export default function CargaMasivaPasajeros() {
         nombre: "Juan Pérez",
         contacto: "987654321",
         rol: "OPERARIO",
-        turno: "4x4",
+        turno: "TurnoH",
         centro_costo: "CC001",
         direccion_origen: "GRAN AVENIDA 1234, LA CISTERNA",
         direccion_destino: "LAS PUERTAS",
@@ -270,21 +395,13 @@ export default function CargaMasivaPasajeros() {
     (row) => row.latOrigen && row.lngOrigen && row.latDestino && row.lngDestino,
   ).length;
 
+  const progressPercent =
+    progress.total > 0
+      ? Math.round((progress.current / progress.total) * 100)
+      : 0;
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      {/* <div className="border-b border-border bg-card shadow-sm">
-        <div className="mx-auto max-w-7xl px-6 py-8">
-          <h1 className="text-3xl font-bold text-foreground">
-            Carga Masiva de Pasajeros
-          </h1>
-          <p className="mt-2 text-base text-muted-foreground">
-            Gestiona la carga y procesamiento de datos de pasajeros desde
-            archivos Excel
-          </p>
-        </div>
-      </div> */}
-
       {/* Main Content */}
       <div className="mx-auto max-w-7xl px-6 py-8">
         {/* Step 1: Upload */}
@@ -307,6 +424,7 @@ export default function CargaMasivaPasajeros() {
               onClick={() => fileInputRef.current?.click()}
               size="lg"
               className="gap-2"
+              disabled={loading}
             >
               <Upload className="h-4 w-4" />
               Cargar Excel
@@ -317,11 +435,47 @@ export default function CargaMasivaPasajeros() {
               onClick={handleDownloadTemplate}
               size="lg"
               className="gap-2"
+              disabled={loading}
             >
               <Download className="h-4 w-4" />
               Descargar Plantilla
             </Button>
           </div>
+
+          {/* Banner cuando se está enviando a la API */}
+          {loading && sendProgress.total > 0 && (
+            <div className="mt-6 rounded-lg border border-orange-200 bg-orange-50 p-4 dark:border-orange-900/40 dark:bg-orange-900/10">
+              <div className="flex items-center gap-2 font-medium text-orange-600 dark:text-orange-400">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-orange-500 border-t-transparent" />
+                Enviando pasajeros a la API... No cargues un nuevo archivo hasta que termine.
+              </div>
+            </div>
+          )}
+
+          {/* Loader con progreso de procesamiento */}
+          {loading && progress.total > 0 && (
+            <div className="mt-6 rounded-lg border border-primary/20 bg-primary/5 p-4">
+              <div className="mb-2 flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2 font-medium text-primary">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  Procesando direcciones...
+                </div>
+                <span className="text-muted-foreground">
+                  {progress.current} / {progress.total} ({progressPercent}%)
+                </span>
+              </div>
+              {/* Barra de progreso */}
+              <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+                <div
+                  className="h-full rounded-full bg-primary transition-all duration-300"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Buscando coordenadas para origen y destino de cada pasajero...
+              </p>
+            </div>
+          )}
 
           <input
             ref={fileInputRef}
@@ -333,7 +487,7 @@ export default function CargaMasivaPasajeros() {
         </div>
 
         {/* Step 2: Preview & Process */}
-        {rows.length > 0 && (
+        {rows.length > 0 && !loading && (
           <>
             <div className="mb-8 rounded-lg border border-border bg-card p-6 shadow-sm">
               <div className="mb-4 flex items-center gap-2">
@@ -405,9 +559,9 @@ export default function CargaMasivaPasajeros() {
                     {rows.map((row, idx) => (
                       <tr
                         key={idx}
-                        className="hover:bg-secondary/30 transition-colors"
+                        className="transition-colors hover:bg-secondary/30"
                       >
-                        <td className="px-4 py-3 text-foreground font-medium">
+                        <td className="px-4 py-3 font-medium text-foreground">
                           {row.rut}
                         </td>
                         <td className="px-4 py-3 text-foreground">
@@ -425,7 +579,7 @@ export default function CargaMasivaPasajeros() {
                         </td>
                         <td className="px-4 py-3">
                           {row.origenSuggestions?.length ? (
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-col gap-1.5 min-w-[200px]">
                               {row.origenSuggestions.map((s) => (
                                 <Button
                                   key={s.place_id || s.description}
@@ -434,27 +588,107 @@ export default function CargaMasivaPasajeros() {
                                   onClick={() =>
                                     handleSelectSuggestion(idx, s, "origen")
                                   }
-                                  className="text-xs"
+                                  className="h-auto w-full justify-start whitespace-normal py-1.5 text-left text-xs leading-tight"
                                 >
-                                  {s.description.length > 20
-                                    ? s.description.substring(0, 20) + "..."
-                                    : s.description}
+                                  {s.description}
                                 </Button>
                               ))}
                             </div>
                           ) : row.latOrigen && row.lngOrigen ? (
-                            <div className="flex items-center gap-1 text-accent">
-                              <CheckCheck className="h-4 w-4" />
-                              <span className="text-xs font-medium">
-                                Verificado
-                              </span>
-                            </div>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                              <CheckCheck className="h-3.5 w-3.5" />
+                              Verificado
+                            </span>
                           ) : (
-                            <div className="flex items-center gap-1 text-destructive">
-                              <AlertCircle className="h-4 w-4" />
-                              <span className="text-xs font-medium">
+                            <div className="flex flex-col gap-1.5">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-semibold text-destructive">
+                                <AlertCircle className="h-3.5 w-3.5" />
                                 Pendiente
                               </span>
+
+                              {/* Modo edición */}
+                              {editingFields[`${idx}-origen`] !== undefined ? (
+                                <div className="flex flex-col gap-1.5 min-w-[220px]">
+                                  <input
+                                    autoFocus
+                                    value={editingFields[`${idx}-origen`]}
+                                    onChange={(e) =>
+                                      setEditingFields((prev) => ({
+                                        ...prev,
+                                        [`${idx}-origen`]: e.target.value,
+                                      }))
+                                    }
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") handleSaveEdit(idx, "origen");
+                                      if (e.key === "Escape")
+                                        setEditingFields((prev) => {
+                                          const next = { ...prev };
+                                          delete next[`${idx}-origen`];
+                                          return next;
+                                        });
+                                    }}
+                                    placeholder="Escribe la dirección..."
+                                    className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-foreground outline-none ring-0 focus:border-primary focus:ring-1 focus:ring-primary"
+                                  />
+                                  <div className="flex gap-1.5">
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleSaveEdit(idx, "origen")}
+                                      disabled={!editingFields[`${idx}-origen`]?.trim()}
+                                      className="h-auto flex-1 py-1 text-xs"
+                                    >
+                                      Buscar
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() =>
+                                        setEditingFields((prev) => {
+                                          const next = { ...prev };
+                                          delete next[`${idx}-origen`];
+                                          return next;
+                                        })
+                                      }
+                                      className="h-auto px-2 py-1 text-xs"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex gap-1.5">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={retryingRows.has(`${idx}-origen`)}
+                                    onClick={() => handleRetry(idx, "origen")}
+                                    className="h-auto gap-1.5 py-1 text-xs"
+                                  >
+                                    {retryingRows.has(`${idx}-origen`) ? (
+                                      <>
+                                        <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                        Buscando...
+                                      </>
+                                    ) : (
+                                      <>🔄 Reintentar</>
+                                    )}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                      setEditingFields((prev) => ({
+                                        ...prev,
+                                        [`${idx}-origen`]: rows[idx].direccion_origen,
+                                      }))
+                                    }
+                                    className="h-auto gap-1 py-1 text-xs"
+                                  >
+                                    <Pencil className="h-3 w-3" />
+                                    Editar
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                           )}
                         </td>
@@ -465,7 +699,7 @@ export default function CargaMasivaPasajeros() {
                         </td>
                         <td className="px-4 py-3">
                           {row.destinoSuggestions?.length ? (
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-col gap-1.5 min-w-[200px]">
                               {row.destinoSuggestions.map((s) => (
                                 <Button
                                   key={s.place_id || s.description}
@@ -474,31 +708,111 @@ export default function CargaMasivaPasajeros() {
                                   onClick={() =>
                                     handleSelectSuggestion(idx, s, "destino")
                                   }
-                                  className="text-xs"
+                                  className="h-auto w-full justify-start whitespace-normal py-1.5 text-left text-xs leading-tight"
                                 >
-                                  {s.description.length > 20
-                                    ? s.description.substring(0, 20) + "..."
-                                    : s.description}
+                                  {s.description}
                                 </Button>
                               ))}
                             </div>
                           ) : row.latDestino && row.lngDestino ? (
-                            <div className="flex items-center gap-1 text-accent">
-                              <CheckCheck className="h-4 w-4" />
-                              <span className="text-xs font-medium">
-                                Verificado
-                              </span>
-                            </div>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                              <CheckCheck className="h-3.5 w-3.5" />
+                              Verificado
+                            </span>
                           ) : (
-                            <div className="flex items-center gap-1 text-destructive">
-                              <AlertCircle className="h-4 w-4" />
-                              <span className="text-xs font-medium">
+                            <div className="flex flex-col gap-1.5">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-semibold text-destructive">
+                                <AlertCircle className="h-3.5 w-3.5" />
                                 Pendiente
                               </span>
+
+                              {/* Modo edición */}
+                              {editingFields[`${idx}-destino`] !== undefined ? (
+                                <div className="flex flex-col gap-1.5 min-w-[220px]">
+                                  <input
+                                    autoFocus
+                                    value={editingFields[`${idx}-destino`]}
+                                    onChange={(e) =>
+                                      setEditingFields((prev) => ({
+                                        ...prev,
+                                        [`${idx}-destino`]: e.target.value,
+                                      }))
+                                    }
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") handleSaveEdit(idx, "destino");
+                                      if (e.key === "Escape")
+                                        setEditingFields((prev) => {
+                                          const next = { ...prev };
+                                          delete next[`${idx}-destino`];
+                                          return next;
+                                        });
+                                    }}
+                                    placeholder="Escribe la dirección..."
+                                    className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-foreground outline-none ring-0 focus:border-primary focus:ring-1 focus:ring-primary"
+                                  />
+                                  <div className="flex gap-1.5">
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleSaveEdit(idx, "destino")}
+                                      disabled={!editingFields[`${idx}-destino`]?.trim()}
+                                      className="h-auto flex-1 py-1 text-xs"
+                                    >
+                                      Buscar
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() =>
+                                        setEditingFields((prev) => {
+                                          const next = { ...prev };
+                                          delete next[`${idx}-destino`];
+                                          return next;
+                                        })
+                                      }
+                                      className="h-auto px-2 py-1 text-xs"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex gap-1.5">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={retryingRows.has(`${idx}-destino`)}
+                                    onClick={() => handleRetry(idx, "destino")}
+                                    className="h-auto gap-1.5 py-1 text-xs"
+                                  >
+                                    {retryingRows.has(`${idx}-destino`) ? (
+                                      <>
+                                        <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                        Buscando...
+                                      </>
+                                    ) : (
+                                      <>🔄 Reintentar</>
+                                    )}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                      setEditingFields((prev) => ({
+                                        ...prev,
+                                        [`${idx}-destino`]: rows[idx].direccion_destino,
+                                      }))
+                                    }
+                                    className="h-auto gap-1 py-1 text-xs"
+                                  >
+                                    <Pencil className="h-3 w-3" />
+                                    Editar
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-foreground font-medium">
+                        <td className="px-4 py-3 font-medium text-foreground">
                           {formatHora(row.hora_programada)}
                         </td>
                       </tr>
@@ -538,16 +852,39 @@ export default function CargaMasivaPasajeros() {
                   <Zap className="h-4 w-4" />
                   {loading ? "Enviando..." : "Enviar a API"}
                 </Button>
-
-                {loading && (
-                  <div className="flex items-center gap-2 text-primary">
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                    <span className="font-medium">Procesando...</span>
-                  </div>
-                )}
               </div>
 
-              {completedCount !== rows.length && rows.length > 0 && (
+              {/* Barra de progreso de envío */}
+              {loading && sendProgress.total > 0 && (
+                <div className="mt-6 rounded-lg border border-primary/20 bg-primary/5 p-4">
+                  <div className="mb-2 flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2 font-medium text-primary">
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                      Enviando pasajeros...
+                    </div>
+                    <span className="text-muted-foreground">
+                      {sendProgress.current} / {sendProgress.total} (
+                      {Math.round(
+                        (sendProgress.current / sendProgress.total) * 100,
+                      )}
+                      %)
+                    </span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all duration-300"
+                      style={{
+                        width: `${Math.round((sendProgress.current / sendProgress.total) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    No cierres esta ventana hasta que el proceso termine...
+                  </p>
+                </div>
+              )}
+
+              {completedCount !== rows.length && rows.length > 0 && !loading && (
                 <div className="mt-4 rounded-lg border border-destructive/50 bg-destructive/5 p-4">
                   <p className="text-sm text-destructive">
                     ⚠️ Completa la verificación de todas las direcciones antes

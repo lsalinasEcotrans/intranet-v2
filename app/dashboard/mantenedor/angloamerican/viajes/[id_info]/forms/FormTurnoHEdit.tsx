@@ -3,7 +3,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { addDays, startOfWeek, format } from "date-fns";
 import { es } from "date-fns/locale";
-
+import { useRouter } from "next/navigation";
+import { ChevronLeft } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -39,6 +40,7 @@ export default function FormTurnoHEdit({
   const [noViaja, setNoViaja] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   /* ============================
      🔹 PRECARGAR DATOS DESDE API
@@ -163,12 +165,17 @@ export default function FormTurnoHEdit({
      🔹 UI
      ============================ */
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto p-8 space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+          <ChevronLeft className="h-5 w-5" />
+        </Button>
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold tracking-tight">Editar Pasajero</h1>
+        </div>
+      </div>
       <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl">Editar Turno H</CardTitle>
-        </CardHeader>
-
         <CardContent className="space-y-6">
           {/* Selección días */}
           <div>
