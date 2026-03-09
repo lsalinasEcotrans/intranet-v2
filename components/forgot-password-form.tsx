@@ -22,7 +22,7 @@ interface ForgotPasswordFormProps {
 }
 
 export function ForgotPasswordForm({ 
-  endpoint = "https://ecotranschile.app.n8n.cloud/webhook-test/fc017f18-74bd-4209-baaf-d7b8cb6a6fc9" 
+  endpoint = "https://ecotranschile.app.n8n.cloud/webhook/fc017f18-74bd-4209-baaf-d7b8cb6a6fc9" 
 }: ForgotPasswordFormProps) {
   const [email, setEmail] = useState("")
   const [formState, setFormState] = useState<FormState>("form")
