@@ -8,14 +8,10 @@ interface PasswordStrengthMeterProps {
 }
 
 const requirements = [
-  { label: "Al menos 8 caracteres", test: (p: string) => p.length >= 8 },
+  { label: "Al menos 6 caracteres", test: (p: string) => p.length >= 6 },
   { label: "Una letra mayuscula", test: (p: string) => /[A-Z]/.test(p) },
   { label: "Una letra minuscula", test: (p: string) => /[a-z]/.test(p) },
-  { label: "Un numero", test: (p: string) => /[0-9]/.test(p) },
-  {
-    label: "Un caracter especial",
-    test: (p: string) => /[^A-Za-z0-9]/.test(p),
-  },
+  { label: "Un numero", test: (p: string) => /[0-9]/.test(p) }
 ]
 
 function getStrength(password: string): number {

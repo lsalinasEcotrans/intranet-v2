@@ -40,7 +40,7 @@ export function ChangePasswordForm() {
 
     async function validateToken() {
       try {
-        const response = await fetch("https://ecotranschile.app.n8n.cloud/webhook-test/fc017f18-74bd-4209-baaf-d7b8cb6a6fc9", {
+        const response = await fetch("https://ecotranschile.app.n8n.cloud/webhook/fc017f18-74bd-4209-baaf-d7b8cb6a6fc9", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "validate", token }),
@@ -64,10 +64,15 @@ export function ChangePasswordForm() {
     validateToken()
   }, [token])
 
+  const isPasswordValid = (p: string): boolean => {
+    return /^(?=.*[A-Z])(?=.*[0-9]).{6,}$/.test(p);
+  };
+
   const passwordsMatch =
     newPassword === confirmPassword && confirmPassword.length > 0
   const canSubmit =
-    newPassword.length >= 8 &&
+    isPasswordValid(newPassword) &&
+    newPassword.length >= 6 &&
     passwordsMatch &&
     !loading
 
@@ -79,7 +84,7 @@ export function ChangePasswordForm() {
     setLoading(true)
 
     try {
-      const response = await fetch("https://ecotranschile.app.n8n.cloud/webhook-test/fc017f18-74bd-4209-baaf-d7b8cb6a6fc9", {
+      const response = await fetch("https://ecotranschile.app.n8n.cloud/webhook/fc017f18-74bd-4209-baaf-d7b8cb6a6fc9", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -196,6 +201,7 @@ export function ChangePasswordForm() {
                 placeholder="Ingresa tu nueva contraseña"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
+                minLength={6}
                 required
                 disabled={loading}
               />
@@ -230,6 +236,7 @@ export function ChangePasswordForm() {
                 placeholder="Repite tu nueva contraseña"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
+                minLength={6}
                 required
                 disabled={loading}
                 className={cn(
