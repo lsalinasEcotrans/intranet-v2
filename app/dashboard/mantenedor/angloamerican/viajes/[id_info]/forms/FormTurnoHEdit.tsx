@@ -4,8 +4,13 @@ import { useState, useEffect, useMemo } from "react";
 import { addDays, startOfWeek, format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useRouter } from "next/navigation";
+<<<<<<< HEAD
 
 import { Card, CardContent } from "@/components/ui/card";
+=======
+import { ChevronLeft } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+>>>>>>> 5f50ffd4203efeb62fba126184e4141aa3ea4d16
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -171,6 +176,7 @@ export default function FormTurnoHEdit({
   const selectedCount = turnosSeleccionados.length;
 
   return (
+<<<<<<< HEAD
     <div className="min-h-screen bg-background">
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
         {/* Header */}
@@ -186,6 +192,21 @@ export default function FormTurnoHEdit({
           <div className="rounded-xl bg-primary/10 p-2.5">
             <Bus className="size-5 text-primary" />
           </div>
+=======
+    <div className="max-w-4xl mx-auto p-8 space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+          <ChevronLeft className="h-5 w-5" />
+        </Button>
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold tracking-tight">Editar Pasajero</h1>
+        </div>
+      </div>
+      <Card>
+        <CardContent className="space-y-6">
+          {/* Selección días */}
+>>>>>>> 5f50ffd4203efeb62fba126184e4141aa3ea4d16
           <div>
             <h1 className="text-2xl font-bold text-foreground tracking-tight">
               Editar Turno H
