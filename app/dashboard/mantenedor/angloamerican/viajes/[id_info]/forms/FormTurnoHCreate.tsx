@@ -139,7 +139,6 @@ export default function FormTurnoHCreate({ authId, grupoNumero }: Props) {
   const selectedCount = turnosSeleccionados.length;
 
   return (
-<<<<<<< HEAD
     <div className="min-h-screen bg-background">
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
         {/* Header */}
@@ -155,16 +154,6 @@ export default function FormTurnoHCreate({ authId, grupoNumero }: Props) {
           <div className="rounded-xl bg-primary/10 p-2.5">
             <Bus className="size-5 text-primary" />
           </div>
-=======
-    <div className="max-w-4xl mx-auto p-8">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl">Crear Turno H</CardTitle>
-        </CardHeader>
-
-        <CardContent className="space-y-6">
-          {/* Selección días */}
->>>>>>> 5f50ffd4203efeb62fba126184e4141aa3ea4d16
           <div>
             <h1 className="text-2xl font-bold text-foreground tracking-tight">
               Crear Viaje Turno H
