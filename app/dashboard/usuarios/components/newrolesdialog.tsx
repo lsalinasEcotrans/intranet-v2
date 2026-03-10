@@ -22,6 +22,7 @@ import {
   Search,
   X,
   AlertCircle,
+  CalendarSync,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -71,6 +72,18 @@ const menuItems: MenuItem[] = [
     items: [
       { title: "Banco de Chile", url: "#", external: false },
       { title: "Hualpen", url: "#", external: false },
+    ],
+  },
+  {
+    title: "Servicios Autonomos",
+    url: "#",
+    icon: "CalendarSync",
+    items: [
+      {
+        title: "Anglo American",
+        url: "/dashboard/mantenedor/angloamerican",
+        external: false,
+      },
     ],
   },
   {
@@ -129,7 +142,7 @@ export function NewRoleDialog({ onRoleCreated }: NewRoleDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [roleName, setRoleName] = useState("");
   const [selectedPermissions, setSelectedPermissions] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState("");
@@ -156,7 +169,7 @@ export function NewRoleDialog({ onRoleCreated }: NewRoleDialogProps) {
         p.title,
         ...(p.items?.map((i) => i.title) || []),
       ]),
-    []
+    [],
   );
 
   /* --------- FILTRO --------- */
@@ -293,7 +306,7 @@ export function NewRoleDialog({ onRoleCreated }: NewRoleDialogProps) {
     try {
       await axios.post(
         "https://ecotrans-intranet-370980788525.europe-west1.run.app/roles",
-        buildPayload()
+        buildPayload(),
       );
       toast.success("Rol creado correctamente");
       onRoleCreated?.();

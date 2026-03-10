@@ -2,7 +2,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import { getPageTitle } from "@/lib/getPageTitle";
 import {
   SidebarProvider,
   SidebarInset,
@@ -37,14 +38,19 @@ export default function DashboardLayout({
   const router = useRouter();
   const [user, setUser] = useState<UserData | null>(null);
   const [menu, setMenu] = useState<MenuItem[]>([]);
+  const pathname = usePathname();
+  const title = getPageTitle(pathname);
 
   useEffect(() => {
     // Leer datos de las cookies
-    const cookies = document.cookie.split("; ").reduce((acc, cookie) => {
-      const [key, value] = cookie.split("=");
-      acc[key] = value;
-      return acc;
-    }, {} as Record<string, string>);
+    const cookies = document.cookie.split("; ").reduce(
+      (acc, cookie) => {
+        const [key, value] = cookie.split("=");
+        acc[key] = value;
+        return acc;
+      },
+      {} as Record<string, string>,
+    );
 
     if (cookies.user_data) {
       try {
@@ -77,7 +83,7 @@ export default function DashboardLayout({
           <header className="flex h-16 items-center px-4 border-b border-gray-200 dark:border-gray-800">
             {/* Botón del sidebar a la izquierda */}
             <SidebarTrigger className="-ml-1" />
-
+            <h1 className="ml-4 text-lg font-semibold">{title}</h1>
             {/* Empuja el toggle a la derecha */}
             <div className="ml-auto">
               <ModeToggle />
