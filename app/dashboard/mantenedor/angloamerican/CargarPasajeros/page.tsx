@@ -5,7 +5,15 @@ import axios from "axios";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { CheckCheck, Upload, Download, Zap, AlertCircle, Pencil, X } from "lucide-react";
+import {
+  CheckCheck,
+  Upload,
+  Download,
+  Zap,
+  AlertCircle,
+  Pencil,
+  X,
+} from "lucide-react";
 
 interface Suggestion {
   description: string;
@@ -41,7 +49,9 @@ export default function CargaMasivaPasajeros() {
   const [payloadPreview, setPayloadPreview] = useState<any[]>([]);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [retryingRows, setRetryingRows] = useState<Set<string>>(new Set());
-  const [editingFields, setEditingFields] = useState<Record<string, string>>({});
+  const [editingFields, setEditingFields] = useState<Record<string, string>>(
+    {},
+  );
   const [sendProgress, setSendProgress] = useState({ current: 0, total: 0 });
 
   const formatHora = (excelNum: number | string) => {
@@ -146,10 +156,7 @@ export default function CargaMasivaPasajeros() {
     [],
   );
 
-  const handleRetry = async (
-    rowIndex: number,
-    type: "origen" | "destino",
-  ) => {
+  const handleRetry = async (rowIndex: number, type: "origen" | "destino") => {
     const row = rows[rowIndex];
     const address =
       type === "origen" ? row.direccion_origen : row.direccion_destino;
@@ -300,7 +307,7 @@ export default function CargaMasivaPasajeros() {
   useEffect(() => {
     const preview = rows.map((row) => ({
       rut: String(row.rut),
-      grupo_numero: Number(row.grupo_numero),
+      grupo_numero: String(row.grupo_numero),
       nombre: row.nombre,
       contacto: String(row.contacto),
       rol: row.rol,
@@ -327,7 +334,7 @@ export default function CargaMasivaPasajeros() {
 
       const payloadBatch = batch.map((row) => ({
         rut: String(row.rut),
-        grupo_numero: Number(row.grupo_numero),
+        grupo_numero: String(row.grupo_numero),
         nombre: row.nombre,
         contacto: String(row.contacto),
         rol: row.rol,
@@ -447,7 +454,8 @@ export default function CargaMasivaPasajeros() {
             <div className="mt-6 rounded-lg border border-orange-200 bg-orange-50 p-4 dark:border-orange-900/40 dark:bg-orange-900/10">
               <div className="flex items-center gap-2 font-medium text-orange-600 dark:text-orange-400">
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-orange-500 border-t-transparent" />
-                Enviando pasajeros a la API... No cargues un nuevo archivo hasta que termine.
+                Enviando pasajeros a la API... No cargues un nuevo archivo hasta
+                que termine.
               </div>
             </div>
           )}
@@ -619,7 +627,8 @@ export default function CargaMasivaPasajeros() {
                                       }))
                                     }
                                     onKeyDown={(e) => {
-                                      if (e.key === "Enter") handleSaveEdit(idx, "origen");
+                                      if (e.key === "Enter")
+                                        handleSaveEdit(idx, "origen");
                                       if (e.key === "Escape")
                                         setEditingFields((prev) => {
                                           const next = { ...prev };
@@ -633,8 +642,12 @@ export default function CargaMasivaPasajeros() {
                                   <div className="flex gap-1.5">
                                     <Button
                                       size="sm"
-                                      onClick={() => handleSaveEdit(idx, "origen")}
-                                      disabled={!editingFields[`${idx}-origen`]?.trim()}
+                                      onClick={() =>
+                                        handleSaveEdit(idx, "origen")
+                                      }
+                                      disabled={
+                                        !editingFields[`${idx}-origen`]?.trim()
+                                      }
                                       className="h-auto flex-1 py-1 text-xs"
                                     >
                                       Buscar
@@ -679,7 +692,8 @@ export default function CargaMasivaPasajeros() {
                                     onClick={() =>
                                       setEditingFields((prev) => ({
                                         ...prev,
-                                        [`${idx}-origen`]: rows[idx].direccion_origen,
+                                        [`${idx}-origen`]:
+                                          rows[idx].direccion_origen,
                                       }))
                                     }
                                     className="h-auto gap-1 py-1 text-xs"
@@ -739,7 +753,8 @@ export default function CargaMasivaPasajeros() {
                                       }))
                                     }
                                     onKeyDown={(e) => {
-                                      if (e.key === "Enter") handleSaveEdit(idx, "destino");
+                                      if (e.key === "Enter")
+                                        handleSaveEdit(idx, "destino");
                                       if (e.key === "Escape")
                                         setEditingFields((prev) => {
                                           const next = { ...prev };
@@ -753,8 +768,12 @@ export default function CargaMasivaPasajeros() {
                                   <div className="flex gap-1.5">
                                     <Button
                                       size="sm"
-                                      onClick={() => handleSaveEdit(idx, "destino")}
-                                      disabled={!editingFields[`${idx}-destino`]?.trim()}
+                                      onClick={() =>
+                                        handleSaveEdit(idx, "destino")
+                                      }
+                                      disabled={
+                                        !editingFields[`${idx}-destino`]?.trim()
+                                      }
                                       className="h-auto flex-1 py-1 text-xs"
                                     >
                                       Buscar
@@ -780,7 +799,9 @@ export default function CargaMasivaPasajeros() {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    disabled={retryingRows.has(`${idx}-destino`)}
+                                    disabled={retryingRows.has(
+                                      `${idx}-destino`,
+                                    )}
                                     onClick={() => handleRetry(idx, "destino")}
                                     className="h-auto gap-1.5 py-1 text-xs"
                                   >
@@ -799,7 +820,8 @@ export default function CargaMasivaPasajeros() {
                                     onClick={() =>
                                       setEditingFields((prev) => ({
                                         ...prev,
-                                        [`${idx}-destino`]: rows[idx].direccion_destino,
+                                        [`${idx}-destino`]:
+                                          rows[idx].direccion_destino,
                                       }))
                                     }
                                     className="h-auto gap-1 py-1 text-xs"
@@ -884,14 +906,16 @@ export default function CargaMasivaPasajeros() {
                 </div>
               )}
 
-              {completedCount !== rows.length && rows.length > 0 && !loading && (
-                <div className="mt-4 rounded-lg border border-destructive/50 bg-destructive/5 p-4">
-                  <p className="text-sm text-destructive">
-                    ⚠️ Completa la verificación de todas las direcciones antes
-                    de enviar
-                  </p>
-                </div>
-              )}
+              {completedCount !== rows.length &&
+                rows.length > 0 &&
+                !loading && (
+                  <div className="mt-4 rounded-lg border border-destructive/50 bg-destructive/5 p-4">
+                    <p className="text-sm text-destructive">
+                      ⚠️ Completa la verificación de todas las direcciones antes
+                      de enviar
+                    </p>
+                  </div>
+                )}
             </div>
           </>
         )}
