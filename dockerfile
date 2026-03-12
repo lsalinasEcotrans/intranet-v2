@@ -1,34 +1,23 @@
-# Etapa 1: Build
-FROM node:18-alpine AS builder
+# Imagen base
+FROM node:18-alpine
+
+# Carpeta de trabajo
 WORKDIR /app
 
-# Copiar dependencias
+# Copiar package.json
 COPY package*.json ./
 
 # Instalar dependencias
 RUN npm install
 
-# Copiar resto del proyecto
+# Copiar proyecto
 COPY . .
 
-# Build de Next.js con Turbopack
+# Construir Next.js
 RUN npm run build
 
-# Etapa 2: Imagen de producción
-FROM node:18-alpine
-WORKDIR /app
+# Puerto
+EXPOSE 3000
 
-# Copiar solo lo necesario
-COPY --from=builder /app ./
-
-# Variables obligatorias para Cloud Run
-ENV NODE_ENV=production
-ENV PORT=8080
-ENV HOST=0.0.0.0
-
-# Exponer puerto
-EXPOSE 8080
-
-# Iniciar servidor Next.js
-CMD ["npm", "start"]
-
+# Comando de inicio
+CMD ["npm","start"]
