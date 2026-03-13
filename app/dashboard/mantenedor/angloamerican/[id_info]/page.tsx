@@ -505,7 +505,6 @@ export default function EditarPasajeroPage() {
                 <div className="space-y-1.5">
                   <Label>Grupo N°</Label>
                   <Input
-                    type="number"
                     value={form.grupo_numero}
                     onChange={(e) =>
                       handleChange("grupo_numero", e.target.value)
