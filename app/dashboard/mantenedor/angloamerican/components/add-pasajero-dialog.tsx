@@ -204,7 +204,7 @@ export function AddPasajeroDialog({ onSuccess }: AddPasajeroDialogProps) {
     try {
       const payload = {
         rut: form.rut,
-        grupo_numero: Number(form.grupo_numero),
+        grupo_numero: form.grupo_numero,
         nombre: form.nombre,
         contacto: form.contacto,
         rol: form.rol,
@@ -605,7 +605,7 @@ export function AddPasajeroDialog({ onSuccess }: AddPasajeroDialogProps) {
                 <Input
                   id="grupo_numero"
                   name="grupo_numero"
-                  type="number"
+                  type="text"
                   placeholder="1"
                   value={form.grupo_numero}
                   onChange={handleChange}
