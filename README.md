@@ -29,7 +29,6 @@ Está pensado para manejar **rutas públicas y privadas**, con integración a AP
 
 AUTH = Autenticación de usuarios y gestión de permisos (login, validación, roles, accesos)
 OWA = Lectura y uso de correo electrónico Microsoft 365 (recepción, lectura y reenvío)
-FLT = Flota de vehículos y conductores (actualización por webhook de datos de conductores y vehículos)
 GHOST = API para reservas de clientes y autocomplete de direcciones
 GRAPH = Integración con Microsoft Graph para Outlook
 AMIGO-SECRETO = Módulo de sorteo navideño con envío de correos
