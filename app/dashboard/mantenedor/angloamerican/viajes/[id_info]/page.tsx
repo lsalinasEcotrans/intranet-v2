@@ -25,7 +25,7 @@ interface DetalleViaje {
 interface ViajeResponse {
   ok: boolean;
   auth_id: number;
-  grupo: number;
+  grupo: string;
   turno: string;
   mode: "create" | "edit";
   detalle_viaje?: DetalleViaje | null;
