@@ -7,21 +7,35 @@ interface PasswordStrengthMeterProps {
   password: string
 }
 
+// 🔒 Reglas centralizadas (UNA sola fuente de verdad)
+const passwordRules = {
+  minLength: (p: string) => p.length >= 6,
+  upper: (p: string) => /[A-Z]/.test(p),
+  lower: (p: string) => /[a-z]/.test(p),
+  number: (p: string) => /[0-9]/.test(p),
+}
+
+// 📋 Checklist
 const requirements = [
-  { label: "Al menos 6 caracteres", test: (p: string) => p.length >= 6 },
-  { label: "Una letra mayuscula", test: (p: string) => /[A-Z]/.test(p) },
-  { label: "Una letra minuscula", test: (p: string) => /[a-z]/.test(p) },
-  { label: "Un numero", test: (p: string) => /[0-9]/.test(p) }
+  { label: "Al menos 6 caracteres", test: passwordRules.minLength },
+  { label: "Una letra mayúscula", test: passwordRules.upper },
+  { label: "Una letra minúscula", test: passwordRules.lower },
+  { label: "Un número", test: passwordRules.number },
 ]
 
+// 🧠 Fuerza convertida a escala de 5 barras
 function getStrength(password: string): number {
   if (!password) return 0
-  return requirements.filter((r) => r.test(password)).length
+
+  const passed = requirements.filter((r) => r.test(password)).length
+
+  // 🔥 Escala proporcional a 5
+  return Math.round((passed / requirements.length) * 5)
 }
 
 function getStrengthLabel(strength: number): string {
   if (strength === 0) return ""
-  if (strength <= 2) return "Debil"
+  if (strength <= 2) return "Débil"
   if (strength <= 3) return "Regular"
   if (strength <= 4) return "Buena"
   return "Excelente"
@@ -63,6 +77,8 @@ export function PasswordStrengthMeter({
             {label}
           </span>
         </div>
+
+        {/* 🔥 5 barras reales */}
         <div className="flex gap-1.5">
           {Array.from({ length: 5 }).map((_, i) => (
             <div
