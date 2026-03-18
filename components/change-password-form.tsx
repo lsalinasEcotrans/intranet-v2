@@ -65,7 +65,7 @@ export function ChangePasswordForm() {
   }, [token])
 
   const isPasswordValid = (p: string): boolean => {
-    return /^(?=.*[A-Z])(?=.*[0-9]).{6,}$/.test(p);
+    return /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{6,}$/.test(p);
   };
 
   const passwordsMatch =
