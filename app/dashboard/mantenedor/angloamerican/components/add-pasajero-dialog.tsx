@@ -677,7 +677,7 @@ export function AddPasajeroDialog({ onSuccess }: AddPasajeroDialogProps) {
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={loading} className="min-w-[160px]">
+            <Button type="submit" disabled={loading} className="min-w-160px">
               {loading ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />

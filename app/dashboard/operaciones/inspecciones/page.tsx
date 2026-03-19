@@ -5,7 +5,6 @@ import NuevaInspeccionDialog from "./components/NuevaInspeccionDialog";
 import InspeccionesTable from "./components/InspeccionesTable";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -35,11 +34,14 @@ export interface Inspeccion {
   datos_inspeccion: Record<string, any> | null;
 }
 
+const AUTO_REFRESH_INTERVAL = 30_000; // 30 segundos
+
 export default function InspeccionesPage() {
   const [inspecciones, setInspecciones] = useState<Inspeccion[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const pageSize = 20;
 
   // Filtros
@@ -48,31 +50,44 @@ export default function InspeccionesPage() {
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
 
-  const fetchInspecciones = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page: String(page),
-        page_size: String(pageSize),
-        ...(search && { search }),
-        ...(estado !== "todos" && { estado }),
-        ...(fechaDesde && { fecha_desde: fechaDesde }),
-        ...(fechaHasta && { fecha_hasta: fechaHasta }),
-      });
-      const res = await fetch(`/api/inspecciones?${params}`);
-      if (!res.ok) throw new Error("Error al cargar inspecciones");
-      const data = await res.json();
-      setInspecciones(data.items);
-      setTotal(data.total);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [page, search, estado, fechaDesde, fechaHasta]);
+  const fetchInspecciones = useCallback(
+    async (silent = false) => {
+      if (!silent) setLoading(true);
+      try {
+        const params = new URLSearchParams({
+          page: String(page),
+          page_size: String(pageSize),
+          ...(search && { search }),
+          ...(estado !== "todos" && { estado }),
+          ...(fechaDesde && { fecha_desde: fechaDesde }),
+          ...(fechaHasta && { fecha_hasta: fechaHasta }),
+        });
+        const res = await fetch(`/api/inspecciones?${params}`);
+        if (!res.ok) throw new Error("Error al cargar inspecciones");
+        const data = await res.json();
+        setInspecciones(data.items);
+        setTotal(data.total);
+        setLastRefresh(new Date());
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [page, search, estado, fechaDesde, fechaHasta],
+  );
 
+  // Carga inicial y cuando cambian filtros/página
   useEffect(() => {
     fetchInspecciones();
+  }, [fetchInspecciones]);
+
+  // Auto-refresh silencioso cada 30 segundos
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchInspecciones(true);
+    }, AUTO_REFRESH_INTERVAL);
+    return () => clearInterval(interval);
   }, [fetchInspecciones]);
 
   const handleSearch = () => {
@@ -99,16 +114,32 @@ export default function InspeccionesPage() {
           <p className="text-sm text-muted-foreground mt-0.5">
             {total} registro{total !== 1 ? "s" : ""} encontrado
             {total !== 1 ? "s" : ""}
+            <span className="ml-2 opacity-50 text-xs">
+              · Actualizado{" "}
+              {lastRefresh.toLocaleTimeString("es-CL", {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              })}
+            </span>
           </p>
         </div>
-        <NuevaInspeccionDialog />
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => fetchInspecciones()}
+          >
+            ↻ Actualizar
+          </Button>
+          <NuevaInspeccionDialog />
+        </div>
       </div>
 
       {/* Filtros */}
       <Card>
         <CardContent className="pt-4 pb-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
-            {/* Búsqueda libre */}
             <div className="lg:col-span-2 space-y-1">
               <Label className="text-xs">Buscar</Label>
               <Input
@@ -118,8 +149,6 @@ export default function InspeccionesPage() {
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
               />
             </div>
-
-            {/* Estado */}
             <div className="space-y-1">
               <Label className="text-xs">Estado</Label>
               <Select value={estado} onValueChange={setEstado}>
@@ -133,8 +162,6 @@ export default function InspeccionesPage() {
                 </SelectContent>
               </Select>
             </div>
-
-            {/* Rango de fechas */}
             <div className="space-y-1">
               <Label className="text-xs">Desde</Label>
               <Input
@@ -152,8 +179,6 @@ export default function InspeccionesPage() {
               />
             </div>
           </div>
-
-          {/* Acciones filtro */}
           <div className="flex gap-2 mt-3">
             <Button size="sm" onClick={handleSearch}>
               Buscar
@@ -169,7 +194,7 @@ export default function InspeccionesPage() {
       <InspeccionesTable
         inspecciones={inspecciones}
         loading={loading}
-        onRefresh={fetchInspecciones}
+        onRefresh={() => fetchInspecciones()}
       />
 
       {/* Paginación */}

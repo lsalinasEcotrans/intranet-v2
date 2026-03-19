@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -9,6 +10,13 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -80,12 +88,7 @@ function ProgressSelector({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <Label>{label}</Label>
-        <span
-          className={cn(
-            "text-xs font-mono font-bold",
-            progressTextColor(value),
-          )}
-        >
+        <span className={cn("text-xs font-bold", progressTextColor(value))}>
           {value}%
         </span>
       </div>
@@ -131,7 +134,7 @@ function ProgressSelector({
             type="button"
             onClick={() => onChange(step)}
             className={cn(
-              "text-[0.65rem] font-mono bg-transparent border-none cursor-pointer p-0 transition-colors",
+              "text-[0.65rem] bg-transparent border-none cursor-pointer p-0 transition-colors",
               value === step
                 ? cn("font-bold", progressTextColor(value))
                 : "text-muted-foreground",
@@ -249,7 +252,11 @@ function PhotoUpload({
   const [dragging, setDragging] = useState(false);
   const handleFiles = (files: FileList | null) => {
     if (!files) return;
-    onAdd(Array.from(files).filter((f) => f.type.startsWith("image/")));
+    onAdd(
+      Array.from(files).filter(
+        (f) => f.type.startsWith("image/") || f.type === "video/mp4",
+      ),
+    );
   };
   return (
     <div className="space-y-3">
@@ -285,7 +292,7 @@ function PhotoUpload({
         <input
           ref={inputRef}
           type="file"
-          accept="image/*"
+          accept="image/*,video/mp4"
           multiple
           className="hidden"
           onChange={(e) => handleFiles(e.target.files)}
@@ -300,11 +307,19 @@ function PhotoUpload({
         >
           {photos.map((file, i) => (
             <div key={i} className="relative group">
-              <img
-                src={URL.createObjectURL(file)}
-                alt={`foto-${i}`}
-                className="w-full aspect-square object-cover rounded-lg border border-border"
-              />
+              {file.type.startsWith("video/") ? (
+                <video
+                  src={URL.createObjectURL(file)}
+                  className="w-full aspect-square object-cover rounded-lg border border-border"
+                  muted
+                />
+              ) : (
+                <img
+                  src={URL.createObjectURL(file)}
+                  alt={`foto-${i}`}
+                  className="w-full aspect-square object-cover rounded-lg border border-border"
+                />
+              )}
               <button
                 type="button"
                 onClick={() => onRemove(i)}
@@ -320,60 +335,96 @@ function PhotoUpload({
   );
 }
 
-// ─── Result Banner ────────────────────────────────────────────────────────────
-function ResultBanner({ result }: { result: SubmitResult }) {
+// ─── Result Dialog ────────────────────────────────────────────────────────────
+function ResultDialog({
+  result,
+  onClose,
+}: {
+  result: SubmitResult;
+  onClose: () => void;
+}) {
   const aprobado = result.estado === "aprobado";
   return (
-    <div
-      className={cn(
-        "rounded-xl border-2 p-4 space-y-2",
-        aprobado
-          ? "border-green-500/40 bg-green-500/10"
-          : "border-destructive/40 bg-destructive/10",
-      )}
-    >
-      <div className="flex items-center gap-2">
-        <span className="text-xl">{aprobado ? "✅" : "❌"}</span>
-        <p
-          className={cn(
-            "font-bold text-sm",
-            aprobado
-              ? "text-green-600 dark:text-green-400"
-              : "text-destructive",
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-3 text-xl">
+            <span className="text-3xl">{aprobado ? "✅" : "❌"}</span>
+            <span
+              className={
+                aprobado
+                  ? "text-green-600 dark:text-green-400"
+                  : "text-destructive"
+              }
+            >
+              Inspección {aprobado ? "Aprobada" : "Rechazada"}
+            </span>
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          {/* ID */}
+          <div
+            className={cn(
+              "rounded-xl p-4 space-y-3",
+              aprobado
+                ? "bg-green-500/8 border border-green-500/20"
+                : "bg-destructive/8 border border-destructive/20",
+            )}
+          >
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">N° Inspección</span>
+              <span className="font-mono font-bold">#{result.id}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Próxima inspección</span>
+              <span className="font-medium">
+                {new Date(result.fecha_proxima).toLocaleDateString("es-CL", {
+                  day: "2-digit",
+                  month: "long",
+                  year: "numeric",
+                })}
+              </span>
+            </div>
+            {result.fotos_subidas > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">
+                  Multimedia guardada
+                </span>
+                <span className="font-medium">
+                  {result.fotos_subidas} archivo
+                  {result.fotos_subidas !== 1 ? "s" : ""}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Motivo rechazo */}
+          {result.motivo_rechazo && (
+            <div className="rounded-xl p-4 bg-destructive/5 border border-destructive/20 space-y-1.5">
+              <p className="text-xs font-semibold text-destructive uppercase tracking-wider">
+                Motivos de rechazo
+              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {result.motivo_rechazo}
+              </p>
+            </div>
           )}
-        >
-          Inspección {aprobado ? "APROBADA" : "RECHAZADA"} — ID #{result.id}
-        </p>
-      </div>
-      {result.motivo_rechazo && (
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          <span className="font-semibold">Motivos: </span>
-          {result.motivo_rechazo}
-        </p>
-      )}
-      <p className="text-xs text-muted-foreground">
-        Próxima inspección:{" "}
-        <span className="font-mono font-medium">
-          {new Date(result.fecha_proxima).toLocaleDateString("es-CL", {
-            day: "2-digit",
-            month: "long",
-            year: "numeric",
-          })}
-        </span>
-        {result.fotos_subidas > 0 && (
-          <>
-            {" "}
-            · {result.fotos_subidas} foto{result.fotos_subidas !== 1 ? "s" : ""}{" "}
-            guardadas en OneDrive
-          </>
-        )}
-      </p>
-    </div>
+        </div>
+
+        <DialogFooter>
+          <Button onClick={onClose} className="w-full" size="lg">
+            Aceptar → Ver Inspecciones
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function NuevaInspeccionPage() {
+  const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [photos, setPhotos] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -453,46 +504,36 @@ export default function NuevaInspeccionPage() {
     setForm((p) => ({ ...p, ...patch }));
   };
 
-  // ── Submit real ─────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     if (!data) return;
     setSubmitting(true);
     setSubmitResult(null);
     setSubmitError(null);
-
     try {
       const fd = new FormData();
-
-      // Campos planos para índices BD
       fd.append("registration", data.vehiculo?.registration ?? "");
       fd.append("callsign", data.vehiculo?.callsign ?? "");
       fd.append("make", data.vehiculo?.make ?? "");
       fd.append("model", data.vehiculo?.model ?? "");
-      fd.append("year_manufacture", data.vehiculo?.yearManufacture ?? "");
+      fd.append("year_manufacture", data.vehiculo?.yearOfManufacture ?? "");
       fd.append("forename", data.driver?.forename ?? "");
       fd.append("surname", data.driver?.surname ?? "");
       fd.append("cpc_card_number", data.driver?.cpcCardNumber ?? "");
-
-      // JSONs completos
       fd.append("datos_vehiculo", JSON.stringify(data.vehiculo ?? {}));
       fd.append("datos_conductor", JSON.stringify(data.driver ?? {}));
       fd.append("datos_inspeccion", JSON.stringify(form));
-
-      // Fotos
       photos.forEach((foto) => fd.append("fotos", foto, foto.name));
 
       const resp = await fetch(`${API_URL}/inspecciones/`, {
         method: "POST",
         body: fd,
       });
-
       if (!resp.ok) {
         const err = await resp
           .json()
           .catch(() => ({ detail: resp.statusText }));
         throw new Error(err.detail ?? "Error al guardar la inspección");
       }
-
       const result: SubmitResult = await resp.json();
       setSubmitResult(result);
       sessionStorage.removeItem("inspeccion_data");
@@ -544,19 +585,24 @@ export default function NuevaInspeccionPage() {
                 {(
                   [
                     ["Patente", data.vehiculo?.registration],
-                    ["Marca", data.vehiculo?.make],
-                    ["Modelo", data.vehiculo?.model],
+                    [
+                      "Marca",
+                      [
+                        data.vehiculo?.make,
+                        data.vehiculo?.model,
+                        data.vehiculo?.yearOfManufacture,
+                      ]
+                        .filter(Boolean)
+                        .join(" "),
+                    ],
                     ["Color", data.vehiculo?.colour],
-                    ["N° Móvil", data.vehiculo?.callsign],
                   ] as [string, string][]
                 ).map(([label, val]) => (
                   <div key={label} className="flex gap-2">
                     <dt className="text-muted-foreground w-14 shrink-0 text-xs">
                       {label}
                     </dt>
-                    <dd className="font-mono font-medium text-xs">
-                      {val || "—"}
-                    </dd>
+                    <dd className="font-medium text-xs">{val || "—"}</dd>
                   </div>
                 ))}
               </dl>
@@ -573,8 +619,8 @@ export default function NuevaInspeccionPage() {
                       "Nombre",
                       `${data.driver?.forename || ""} ${data.driver?.surname || ""}`.trim(),
                     ],
-                    ["Email", data.driver?.email],
                     ["CPC", data.driver?.cpcCardNumber],
+                    ["N° Móvil", data.vehiculo?.callsign],
                   ] as [string, string][]
                 ).map(([label, val]) => (
                   <div key={label} className="flex gap-2 flex-wrap">
@@ -592,7 +638,7 @@ export default function NuevaInspeccionPage() {
         </CardContent>
       </Card>
 
-      {/* Odómetro & Mantención */}
+      {/* Odómetro */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
@@ -829,9 +875,6 @@ export default function NuevaInspeccionPage() {
         </CardContent>
       </Card>
 
-      {/* Resultado */}
-      {submitResult && <ResultBanner result={submitResult} />}
-
       {/* Error */}
       {submitError && (
         <div className="rounded-xl border-2 border-destructive/40 bg-destructive/10 p-4">
@@ -841,16 +884,22 @@ export default function NuevaInspeccionPage() {
         </div>
       )}
 
-      {/* Botón enviar — se oculta tras éxito */}
-      {!submitResult && (
-        <Button
-          onClick={handleSubmit}
-          disabled={submitting}
-          size="lg"
-          className="w-full font-mono tracking-wide"
-        >
-          {submitting ? "Enviando..." : "Enviar Inspección →"}
-        </Button>
+      {/* Botón enviar */}
+      <Button
+        onClick={handleSubmit}
+        disabled={submitting}
+        size="lg"
+        className="w-full tracking-wide"
+      >
+        {submitting ? "Enviando..." : "Enviar Inspección →"}
+      </Button>
+
+      {/* Dialog resultado */}
+      {submitResult && (
+        <ResultDialog
+          result={submitResult}
+          onClose={() => router.push("/dashboard/operaciones/inspecciones")}
+        />
       )}
     </div>
   );

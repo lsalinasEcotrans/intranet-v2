@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { Inspeccion } from "../page";
 import InspeccionDetalle from "./InspeccionDetalle";
 import InspeccionEditar from "./InspeccionEditar";
+import { CheckCircle, XCircle } from "lucide-react";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("es-CL", {
@@ -34,7 +35,17 @@ function EstadoBadge({ estado }: { estado: "aprobado" | "rechazado" }) {
           : "border-destructive/40 bg-destructive/10 text-destructive"
       }
     >
-      {estado === "aprobado" ? "✅ Aprobado" : "❌ Rechazado"}
+      {estado === "aprobado" ? (
+        <>
+          <CheckCircle className="w-4 h-4" />
+          Aprobado
+        </>
+      ) : (
+        <>
+          <XCircle className="w-4 h-4" />
+          Rechazado
+        </>
+      )}
     </Badge>
   );
 }
@@ -76,27 +87,44 @@ export default function InspeccionesTable({
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/40">
-              <TableHead className="text-xs font-semibold uppercase tracking-wider w-12">ID</TableHead>
-              <TableHead className="text-xs font-semibold uppercase tracking-wider">Patente / Móvil</TableHead>
-              <TableHead className="text-xs font-semibold uppercase tracking-wider">Vehículo</TableHead>
-              <TableHead className="text-xs font-semibold uppercase tracking-wider">Conductor</TableHead>
-              <TableHead className="text-xs font-semibold uppercase tracking-wider">CPC</TableHead>
-              <TableHead className="text-xs font-semibold uppercase tracking-wider">Estado</TableHead>
-              <TableHead className="text-xs font-semibold uppercase tracking-wider">Creación</TableHead>
-              <TableHead className="text-xs font-semibold uppercase tracking-wider">Próxima</TableHead>
-              <TableHead className="text-xs font-semibold uppercase tracking-wider text-right">Acciones</TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider">
+                Patente / Móvil
+              </TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider">
+                Vehículo
+              </TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider">
+                Conductor
+              </TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider">
+                CPC
+              </TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider">
+                Estado
+              </TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider">
+                Creación
+              </TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider">
+                Próxima
+              </TableHead>
+              <TableHead className="text-xs font-semibold uppercase tracking-wider text-right">
+                Acciones
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {inspecciones.map((ins) => (
-              <TableRow key={ins.id} className="hover:bg-muted/30 transition-colors">
-                <TableCell className="font-mono text-xs text-muted-foreground">
-                  #{ins.id}
-                </TableCell>
+              <TableRow
+                key={ins.id}
+                className="hover:bg-muted/30 transition-colors"
+              >
                 <TableCell>
-                  <p className="font-mono font-bold text-sm">{ins.registration}</p>
+                  <p className=" font-bold text-sm">{ins.registration}</p>
                   {ins.callsign && (
-                    <p className="text-xs text-muted-foreground">Móvil {ins.callsign}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Móvil {ins.callsign}
+                    </p>
                   )}
                 </TableCell>
                 <TableCell>
@@ -104,15 +132,18 @@ export default function InspeccionesTable({
                     {[ins.make, ins.model].filter(Boolean).join(" ") || "—"}
                   </p>
                   {ins.year_manufacture && (
-                    <p className="text-xs text-muted-foreground">{ins.year_manufacture}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {ins.year_manufacture}
+                    </p>
                   )}
                 </TableCell>
                 <TableCell>
                   <p className="text-sm">
-                    {[ins.forename, ins.surname].filter(Boolean).join(" ") || "—"}
+                    {[ins.forename, ins.surname].filter(Boolean).join(" ") ||
+                      "—"}
                   </p>
                 </TableCell>
-                <TableCell className="font-mono text-xs">
+                <TableCell className=" text-xs">
                   {ins.cpc_card_number || "—"}
                 </TableCell>
                 <TableCell>
@@ -163,7 +194,10 @@ export default function InspeccionesTable({
         <InspeccionEditar
           inspeccion={editar}
           onClose={() => setEditar(null)}
-          onSaved={() => { setEditar(null); onRefresh(); }}
+          onSaved={() => {
+            setEditar(null);
+            onRefresh();
+          }}
         />
       )}
     </>

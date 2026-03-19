@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { Printer, CheckCircle, XCircle, CarIcon } from "lucide-react";
 import type { Inspeccion } from "../page";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -24,18 +25,26 @@ function formatDate(iso: string) {
   });
 }
 
-/** Extrae la URL de proxy dado un objeto foto o string legado */
-function fotoProxyUrl(f: any): string {
+function mediaProxyUrl(f: any): string {
   if (!f) return "";
-  if (typeof f === "string") return f; // registros legados
+  if (typeof f === "string") return f;
   return `/api/inspecciones/foto/${f.item_id}`;
+}
+
+function isVideo(f: any): boolean {
+  if (!f || typeof f === "string") return false;
+  return (
+    !!f.is_video ||
+    (f.mime ?? "").startsWith("video/") ||
+    (f.filename ?? "").toLowerCase().endsWith(".mp4")
+  );
 }
 
 function CheckItem({ label, value }: { label: string; value: boolean }) {
   return (
     <div className="flex items-center gap-2 text-sm">
       <span className={value ? "text-green-500" : "text-destructive"}>
-        {value ? "✅" : "❌"}
+        {value ? <CheckCircle /> : <XCircle />}
       </span>
       <span
         className={cn(
@@ -69,9 +78,7 @@ function ProgressBar({ label, value }: { label: string; value: number }) {
     <div className="space-y-1.5">
       <div className="flex justify-between items-center">
         <span className="text-sm text-muted-foreground">{label}</span>
-        <span className={cn("text-xs font-mono font-bold", text)}>
-          {value}%
-        </span>
+        <span className={cn("text-xs font-bold", text)}>{value}%</span>
       </div>
       <div className="h-2 rounded-full bg-secondary">
         <div
@@ -109,56 +116,84 @@ function Lightbox({
   const [current, setCurrent] = useState(index);
   const total = fotos.length;
 
-  const prev = () => setCurrent((c) => (c - 1 + total) % total);
-  const next = () => setCurrent((c) => (c + 1) % total);
+  // Teclado: flechas navegan, Escape cierra
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft") setCurrent((c) => (c - 1 + total) % total);
+      if (e.key === "ArrowRight") setCurrent((c) => (c + 1) % total);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [total, onClose]);
+
+  const prev = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrent((c) => (c - 1 + total) % total);
+  };
+  const next = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrent((c) => (c + 1) % total);
+  };
 
   return (
+    // stopPropagation en el wrapper evita cerrar el Dialog de shadcn
     <div
-      className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center"
-      onClick={onClose}
+      className="fixed inset-0 z-200 bg-black/90 flex items-center justify-center"
+      onClick={(e) => e.stopPropagation()}
     >
-      {/* Close */}
+      {/* Cerrar */}
       <button
-        onClick={onClose}
-        className="absolute top-4 right-4 text-white text-2xl bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 flex items-center justify-center transition-colors"
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
+        className="absolute top-4 right-4 text-white text-xl bg-white/10 hover:bg-white/25 rounded-full w-10 h-10 flex items-center justify-center transition-colors z-10"
       >
         ✕
       </button>
 
-      {/* Counter */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white/70 text-sm font-mono">
+      {/* Contador */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white/70 text-sm  select-none">
         {current + 1} / {total}
       </div>
 
-      {/* Prev */}
+      {/* Anterior */}
       {total > 1 && (
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            prev();
-          }}
-          className="absolute left-4 text-white text-3xl bg-white/10 hover:bg-white/20 rounded-full w-12 h-12 flex items-center justify-center transition-colors"
+          onClick={prev}
+          className="absolute left-4 top-1/2 -translate-y-1/2 text-white text-4xl bg-white/10 hover:bg-white/25 rounded-full w-12 h-12 flex items-center justify-center transition-colors z-10"
         >
           ‹
         </button>
       )}
 
-      {/* Image */}
-      <img
-        src={fotoProxyUrl(fotos[current])}
-        alt={`foto-${current + 1}`}
-        className="max-h-[85vh] max-w-[85vw] object-contain rounded-lg"
-        onClick={(e) => e.stopPropagation()}
-      />
+      {/* Imagen o Video */}
+      {isVideo(fotos[current]) ? (
+        <video
+          key={current}
+          src={mediaProxyUrl(fotos[current])}
+          className="max-h-[80vh] max-w-[80vw] rounded-lg"
+          controls
+          autoPlay
+          onClick={(e) => e.stopPropagation()}
+        />
+      ) : (
+        <img
+          key={current}
+          src={mediaProxyUrl(fotos[current])}
+          alt={`foto-${current + 1}`}
+          className="max-h-[80vh] max-w-[80vw] object-contain rounded-lg select-none"
+          onClick={(e) => e.stopPropagation()}
+          draggable={false}
+        />
+      )}
 
-      {/* Next */}
+      {/* Siguiente */}
       {total > 1 && (
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            next();
-          }}
-          className="absolute right-4 text-white text-3xl bg-white/10 hover:bg-white/20 rounded-full w-12 h-12 flex items-center justify-center transition-colors"
+          onClick={next}
+          className="absolute right-4 top-1/2 -translate-y-1/2 text-white text-4xl bg-white/10 hover:bg-white/25 rounded-full w-12 h-12 flex items-center justify-center transition-colors z-10"
         >
           ›
         </button>
@@ -166,7 +201,10 @@ function Lightbox({
 
       {/* Thumbnails */}
       {total > 1 && (
-        <div className="absolute bottom-4 flex gap-2">
+        <div
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2"
+          onClick={(e) => e.stopPropagation()}
+        >
           {fotos.map((f, i) => (
             <button
               key={i}
@@ -178,14 +216,21 @@ function Lightbox({
                 "w-12 h-12 rounded-lg overflow-hidden border-2 transition-all",
                 i === current
                   ? "border-white opacity-100"
-                  : "border-transparent opacity-50 hover:opacity-75",
+                  : "border-transparent opacity-50 hover:opacity-80",
               )}
             >
-              <img
-                src={fotoProxyUrl(f)}
-                alt=""
-                className="w-full h-full object-cover"
-              />
+              {isVideo(f) ? (
+                <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
+                  <span className="text-white text-lg">▶</span>
+                </div>
+              ) : (
+                <img
+                  src={mediaProxyUrl(f)}
+                  alt=""
+                  className="w-full h-full object-cover"
+                  draggable={false}
+                />
+              )}
             </button>
           ))}
         </div>
@@ -207,14 +252,13 @@ export default function InspeccionDetalle({
   const di = inspeccion.datos_inspeccion ?? {};
   const fotos: any[] = di.fotos ?? [];
 
-  // ── Imprimir PDF ──────────────────────────────────────────────────────────
+  // ── Imprimir PDF (solo fotos, no videos) ──────────────────────────────────
   const handlePrint = async () => {
-    // Convertir fotos a base64 para que aparezcan en la impresión
+    const soloFotos = fotos.filter((f) => !isVideo(f));
     const fotosBase64 = await Promise.all(
-      fotos.map(async (f) => {
+      soloFotos.map(async (f) => {
         try {
-          const url = fotoProxyUrl(f);
-          const res = await fetch(url);
+          const res = await fetch(mediaProxyUrl(f));
           const blob = await res.blob();
           return await new Promise<string>((resolve) => {
             const reader = new FileReader();
@@ -231,8 +275,7 @@ export default function InspeccionDetalle({
     if (!win) return;
 
     win.document.write(`
-      <!DOCTYPE html>
-      <html>
+      <!DOCTYPE html><html>
         <head>
           <title>Inspección #${inspeccion.id} — ${inspeccion.registration}</title>
           <meta charset="utf-8" />
@@ -241,7 +284,7 @@ export default function InspeccionDetalle({
             body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; color: #1a1a1a; background: white; }
             .wrap { max-width: 800px; margin: 0 auto; padding: 24px; }
             .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid #1e3a5f; }
-            .logo-box { width: 48px; height: 48px; background: #1e3a5f; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 900; font-size: 16px; line-height: 1; text-align: center; padding-top: 14px; }
+            .logo-box { width: 48px; height: 48px; background: #1e3a5f; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 900; font-size: 16px; }
             .header-left { display: flex; align-items: center; gap: 12px; }
             .company-name { font-size: 18px; font-weight: 800; color: #1e3a5f; }
             .company-sub { font-size: 10px; color: #666; margin-top: 2px; }
@@ -260,8 +303,7 @@ export default function InspeccionDetalle({
             .field-value { font-size: 11px; font-weight: 600; color: #111; margin-top: 1px; }
             .checks-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
             .check-item { display: flex; align-items: center; gap: 5px; font-size: 10px; padding: 2px 0; }
-            .check-ok { color: #166534; }
-            .check-fail { color: #991b1b; text-decoration: line-through; opacity: 0.6; }
+            .check-ok { color: #166534; } .check-fail { color: #991b1b; text-decoration: line-through; opacity: 0.6; }
             .progress-item { margin-bottom: 8px; }
             .progress-header { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 3px; }
             .progress-bar { height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; }
@@ -283,11 +325,7 @@ export default function InspeccionDetalle({
         <body><div class="wrap">
           <div class="header">
             <div class="header-left">
-              <div class="logo-box">ET</div>
-              <div>
-                <div class="company-name">Ecotrans Chile</div>
-                <div class="company-sub">Sistema de Inspección Vehicular</div>
-              </div>
+              <div><div class="company-name"> <img src="/logoEcotrans_50px.png" class="logo" /></div><div class="company-sub">Sistema de Inspección Vehicular</div></div>
             </div>
             <div class="header-right">
               <div class="doc-title">Informe de Inspección</div>
@@ -295,10 +333,9 @@ export default function InspeccionDetalle({
               <span class="estado-badge ${inspeccion.estado}">${inspeccion.estado === "aprobado" ? "✓ APROBADO" : "✗ RECHAZADO"}</span>
             </div>
           </div>
-
           <div class="grid-2 section">
             <div>
-              <div class="section-title">🚌 Vehículo</div>
+              <div class="section-title"> Vehículo</div>
               ${[
                 ["Patente", inspeccion.registration],
                 ["N° Móvil", inspeccion.callsign],
@@ -315,7 +352,7 @@ export default function InspeccionDetalle({
                 .join("")}
             </div>
             <div>
-              <div class="section-title">👤 Conductor</div>
+              <div class="section-title"> Conductor</div>
               ${[
                 [
                   "Nombre",
@@ -332,19 +369,17 @@ export default function InspeccionDetalle({
                 .join("")}
             </div>
           </div>
-
           <div class="section">
-            <div class="section-title">🔧 Odómetro & Mantención</div>
+            <div class="section-title"> Odómetro & Mantención</div>
             <div class="grid-3">
               <div class="field"><div class="field-label">Kilometraje</div><div class="field-value">${di.kilometraje ? Number(di.kilometraje).toLocaleString("es-CL") + " km" : "—"}</div></div>
               <div class="field"><div class="field-label">Próxima mantención</div><div class="field-value">${di.proximaMantencion ? Number(di.proximaMantencion).toLocaleString("es-CL") + " km" : "—"}</div></div>
               <div class="field"><div class="field-label">Extintor válido hasta</div><div class="field-value">${di.extintorFecha || "—"}</div></div>
             </div>
           </div>
-
           <div class="grid-2 section">
             <div>
-              <div class="section-title">🦺 Seguridad</div>
+              <div class="section-title"> Seguridad</div>
               <div class="checks-grid">
                 ${[
                   ["cinturonDelantero", "Cinturón delantero"],
@@ -362,7 +397,7 @@ export default function InspeccionDetalle({
               </div>
             </div>
             <div>
-              <div class="section-title">💡 Luces</div>
+              <div class="section-title"> Luces</div>
               <div class="checks-grid">
                 ${[
                   ["luzPatenteTransera", "Patente trasera"],
@@ -381,7 +416,6 @@ export default function InspeccionDetalle({
               </div>
             </div>
           </div>
-
           <div class="section">
             <div class="section-title">⚙️ Neumáticos & Frenos</div>
             ${["neumaticos", "frenos"]
@@ -399,34 +433,23 @@ export default function InspeccionDetalle({
               })
               .join("")}
           </div>
-
           <div class="section">
             <div class="section-title">🚗 Carrocería</div>
             <span class="car-badge car-${(di.carroceria || "").toLowerCase()}">${di.carroceria || "—"}</span>
           </div>
-
           ${di.observaciones ? `<div class="section"><div class="section-title">📝 Observaciones</div><div class="obs-box">${di.observaciones}</div></div>` : ""}
           ${inspeccion.motivo_rechazo ? `<div class="section"><div class="section-title">⚠️ Motivo de rechazo</div><div class="rechazo-box">${inspeccion.motivo_rechazo}</div></div>` : ""}
-
           ${
             fotosBase64.filter(Boolean).length > 0
-              ? `
-            <div class="section">
-              <div class="section-title">📸 Fotografías (${fotosBase64.filter(Boolean).length})</div>
-              <div class="fotos-grid">
-                ${fotosBase64
+              ? `<div class="section"><div class="section-title">📸 Fotografías (${fotosBase64.filter(Boolean).length})</div><div class="fotos-grid">${fotosBase64
                   .filter(Boolean)
                   .map(
                     (b64) =>
                       `<div class="foto-item"><img src="${b64}" /></div>`,
                   )
-                  .join("")}
-              </div>
-            </div>
-          `
+                  .join("")}</div></div>`
               : ""
           }
-
           <div class="footer">
             <span>Ecotrans Chile · Sistema de Inspección Vehicular</span>
             <span>Generado: ${new Date().toLocaleString("es-CL")} · Próxima: ${new Date(inspeccion.fecha_proxima).toLocaleDateString("es-CL")}</span>
@@ -442,14 +465,14 @@ export default function InspeccionDetalle({
   return (
     <>
       <Dialog open onOpenChange={onClose}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-7xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center justify-between pr-8">
               <DialogTitle className="text-lg font-bold">
                 Inspección #{inspeccion.id} — {inspeccion.registration}
               </DialogTitle>
               <Button size="sm" variant="outline" onClick={handlePrint}>
-                🖨️ Imprimir PDF
+                <Printer /> Imprimir PDF
               </Button>
             </div>
           </DialogHeader>
@@ -466,9 +489,17 @@ export default function InspeccionDetalle({
                     : "border-destructive/40 bg-destructive/10 text-destructive",
                 )}
               >
-                {inspeccion.estado === "aprobado"
-                  ? "✅ Aprobado"
-                  : "❌ Rechazado"}
+                {inspeccion.estado === "aprobado" ? (
+                  <>
+                    <CheckCircle className="inline w-4 h-4 mr-1" />
+                    Aprobado
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="inline w-4 h-4 mr-1" />
+                    Rechazado
+                  </>
+                )}
               </Badge>
               <span className="text-xs text-muted-foreground">
                 {formatDate(inspeccion.fecha_creacion)}
@@ -493,7 +524,7 @@ export default function InspeccionDetalle({
             {/* Vehículo & Conductor */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <SectionTitle icon="🚌" title="Vehículo" />
+                <SectionTitle icon="" title="Vehículo" />
                 <dl className="space-y-1">
                   {[
                     ["Patente", inspeccion.registration],
@@ -506,13 +537,13 @@ export default function InspeccionDetalle({
                       <dt className="text-muted-foreground w-16 shrink-0">
                         {l}
                       </dt>
-                      <dd className="font-medium font-mono">{v || "—"}</dd>
+                      <dd className="font-medium ">{v || "—"}</dd>
                     </div>
                   ))}
                 </dl>
               </div>
               <div>
-                <SectionTitle icon="👤" title="Conductor" />
+                <SectionTitle icon="" title="Conductor" />
                 <dl className="space-y-1">
                   {[
                     [
@@ -538,7 +569,7 @@ export default function InspeccionDetalle({
 
             {/* Odómetro */}
             <div>
-              <SectionTitle icon="🔧" title="Odómetro & Mantención" />
+              <SectionTitle icon="" title="Odómetro & Mantención" />
               <div className="grid grid-cols-3 gap-3 text-xs">
                 {[
                   [
@@ -557,7 +588,7 @@ export default function InspeccionDetalle({
                 ].map(([l, v]) => (
                   <div key={String(l)}>
                     <p className="text-muted-foreground">{l}</p>
-                    <p className="font-mono font-semibold">{v}</p>
+                    <p className=" font-semibold">{v}</p>
                   </div>
                 ))}
               </div>
@@ -567,7 +598,7 @@ export default function InspeccionDetalle({
 
             {/* Seguridad */}
             <div>
-              <SectionTitle icon="🦺" title="Seguridad" />
+              <SectionTitle icon="" title="Seguridad" />
               <div className="grid grid-cols-2 gap-1.5">
                 {[
                   ["cinturonDelantero", "Cinturón delantero"],
@@ -586,7 +617,7 @@ export default function InspeccionDetalle({
 
             {/* Neumáticos & Frenos */}
             <div>
-              <SectionTitle icon="⚙️" title="Neumáticos & Frenos" />
+              <SectionTitle icon="" title="Neumáticos & Frenos" />
               <div className="space-y-3">
                 <ProgressBar label="Neumáticos" value={di.neumaticos ?? 0} />
                 <ProgressBar label="Frenos" value={di.frenos ?? 0} />
@@ -598,7 +629,7 @@ export default function InspeccionDetalle({
             {/* Carrocería & Luces */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <SectionTitle icon="🚗" title="Carrocería" />
+                <SectionTitle icon="" title="Carrocería" />
                 {di.carroceria ? (
                   <span
                     className={cn(
@@ -617,7 +648,7 @@ export default function InspeccionDetalle({
                 )}
               </div>
               <div>
-                <SectionTitle icon="💡" title="Luces" />
+                <SectionTitle icon="" title="Luces" />
                 <div className="space-y-1">
                   {[
                     ["luzPatenteTransera", "Luz patente trasera"],
@@ -639,7 +670,7 @@ export default function InspeccionDetalle({
               <>
                 <Separator />
                 <div>
-                  <SectionTitle icon="📝" title="Observaciones" />
+                  <SectionTitle icon="" title="Observaciones" />
                   <p className="text-sm text-muted-foreground bg-muted/30 rounded-lg p-3 leading-relaxed">
                     {di.observaciones}
                   </p>
@@ -647,20 +678,20 @@ export default function InspeccionDetalle({
               </>
             )}
 
-            {/* Fotos */}
+            {/* Fotos y Videos mezclados */}
             {fotos.length > 0 && (
               <>
                 <Separator />
                 <div>
                   <SectionTitle
                     icon="📸"
-                    title={`Fotografías (${fotos.length})`}
+                    title={`Multimedia (${fotos.length})`}
                   />
                   <div
                     className="grid gap-2"
                     style={{
                       gridTemplateColumns:
-                        "repeat(auto-fill, minmax(90px, 1fr))",
+                        "repeat(auto-fill, minmax(120px, 1fr))",
                     }}
                   >
                     {fotos.map((f, i) => (
@@ -668,19 +699,47 @@ export default function InspeccionDetalle({
                         key={i}
                         type="button"
                         onClick={() => setLightboxIndex(i)}
-                        className="group relative rounded-lg overflow-hidden border border-border hover:border-primary/50 transition-all"
+                        className="group relative rounded-lg overflow-hidden border border-border hover:border-primary/50 transition-all aspect-square"
                       >
-                        <img
-                          src={fotoProxyUrl(f)}
-                          alt={`foto-${i + 1}`}
-                          className="w-full aspect-square object-cover group-hover:opacity-80 transition-opacity"
-                        />
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
-                          <span className="text-white text-lg">🔍</span>
-                        </div>
+                        {isVideo(f) ? (
+                          <>
+                            {/* Thumbnail de video: primer frame */}
+                            <video
+                              src={mediaProxyUrl(f)}
+                              className="w-full h-full object-cover"
+                              muted
+                              playsInline
+                              preload="metadata"
+                            />
+                            {/* Overlay con ícono play */}
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 group-hover:bg-black/50 transition-colors">
+                              <span className="text-white text-3xl">▶</span>
+                              <span className="text-white/70 text-[0.6rem] mt-1 ">
+                                VIDEO
+                              </span>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <img
+                              src={mediaProxyUrl(f)}
+                              alt={`foto-${i + 1}`}
+                              className="w-full h-full object-cover group-hover:opacity-80 transition-opacity"
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
+                              <span className="text-white text-lg">🔍</span>
+                            </div>
+                          </>
+                        )}
                       </button>
                     ))}
                   </div>
+                  {/* Nota si hay videos (no se imprimen) */}
+                  {fotos.some(isVideo) && (
+                    <p className="text-xs text-muted-foreground/60 mt-2">
+                      * Los videos no se incluyen en la impresión PDF
+                    </p>
+                  )}
                 </div>
               </>
             )}
