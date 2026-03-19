@@ -683,10 +683,10 @@ export function PasajerosTable() {
                     <TableCell>{p.grupo_numero}</TableCell>
                   )}
                   <TableCell>{p.centro_costo}</TableCell>
-                  <TableCell className="max-w-[160px] truncate">
+                  <TableCell className="max-w-160px truncate">
                     {p.direccion_origen}
                   </TableCell>
-                  <TableCell className="max-w-[160px] truncate">
+                  <TableCell className="max-w-160px truncate">
                     {p.direccion_destino}
                   </TableCell>
                   <TableCell>{formatHora(p.hora_programada)}</TableCell>
