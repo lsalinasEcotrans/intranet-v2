@@ -27,7 +27,7 @@ import type { Turno, TurnoSeleccionado } from "@/components/turno-h/shift-grid";
 
 interface Props {
   authId: number;
-  grupoNumero: number;
+  grupoNumero: string;
 }
 
 export default function FormTurnoHCreate({ authId, grupoNumero }: Props) {

@@ -23,7 +23,7 @@ interface DetalleReserva {
 
 interface Form4x4Props {
   authId: number;
-  grupoNumero: number;
+  grupoNumero: string;
   tipoTurno: "4x4" | "7x7";
   detalleReserva?: DetalleReserva;
 }

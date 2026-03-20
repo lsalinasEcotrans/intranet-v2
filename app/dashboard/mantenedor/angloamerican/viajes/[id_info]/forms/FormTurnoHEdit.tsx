@@ -27,7 +27,7 @@ import type { Turno, TurnoSeleccionado } from "@/components/turno-h/shift-grid";
 
 interface Props {
   authId: number;
-  grupoNumero: number;
+  grupoNumero: string;
   detalleViaje: any;
 }
 
@@ -115,6 +115,11 @@ export default function FormTurnoHEdit({
 
   /* ── Actualizar Turno H ────────────────────────────────────────────────── */
   const handleActualizar = async () => {
+    if (!authId || !grupoNumero) {
+      toast.error("Datos invalidos desde la API");
+      return;
+    }
+
     if (!noViaja && fechasCalculadas.length === 0) {
       toast.error("Selecciona al menos un turno o indica que no viajaras");
       return;
@@ -148,6 +153,7 @@ export default function FormTurnoHEdit({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             auth_id: authId,
+            grupo_numero: grupoNumero,
             tipo_turno: "H",
             detalle_json,
           }),

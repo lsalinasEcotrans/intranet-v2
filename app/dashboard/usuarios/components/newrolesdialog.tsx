@@ -46,11 +46,21 @@ const menuItems: MenuItem[] = [
     url: "#",
     icon: "Handshake",
     items: [
-      { title: "Contratos", url: "#", external: false },
-      { title: "Documentos", url: "#", external: false },
-      { title: "Flota", url: "#", external: false },
-      { title: "Revisiones", url: "#", external: false },
-      { title: "Seguros", url: "#", external: false },
+      {
+        title: "Contratos",
+        url: "/dashboard/operaciones/contratos",
+        external: false,
+      },
+      {
+        title: "Seguros",
+        url: "/dashboard/operaciones/flota",
+        external: false,
+      },
+      {
+        title: "Inspecciones",
+        url: "/dashboard/operaciones/inspecciones",
+        external: false,
+      },
     ],
   },
   {

@@ -85,7 +85,7 @@ export function NavUser({ user, onLogout }: NavUserProps) {
               >
                 <Avatar className="h-8 w-8 rounded-lg">
                   <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                  <AvatarFallback className="rounded-lg bg-linear-to-br from-blue-500 to-purple-600 text-white">
                     {getInitials(user.name)}
                   </AvatarFallback>
                 </Avatar>
@@ -108,7 +108,7 @@ export function NavUser({ user, onLogout }: NavUserProps) {
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                   <Avatar className="h-8 w-8 rounded-lg">
                     <AvatarImage src={user.avatar} alt={user.name} />
-                    <AvatarFallback className="rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                    <AvatarFallback className="rounded-lg bg-linear-to-br from-blue-500 to-purple-600 text-white">
                       {getInitials(user.name)}
                     </AvatarFallback>
                   </Avatar>

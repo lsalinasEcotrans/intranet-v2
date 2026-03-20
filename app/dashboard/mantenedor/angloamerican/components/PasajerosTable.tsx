@@ -3,7 +3,7 @@
 import React from "react";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import axios from "axios";
 import type { Pasajero } from "@/lib/types";
 import {
@@ -44,10 +44,10 @@ import {
   Pencil,
   Trash2,
   MapPin,
+  CheckCircle2,
+  Clock,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-
-// Agrega estos imports
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -67,21 +67,34 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+// ─── Constantes ───────────────────────────────────────────────────────────────
+const POLLING_INTERVAL_MS = 30_000; // 30 segundos
+const API_BASE = "https://ecotrans-pasajero-370980788525.europe-west1.run.app";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function formatHora(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
   const mins = Math.floor((seconds % 3600) / 60);
   return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
 }
 
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("es-CL", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
+function formatTurno(turno: string) {
+  if (turno === "TurnoH") return "Turno H";
+  if (turno === "4x4") return "Turno 4x4";
+  if (turno === "7x7") return "Turno 7x7";
+  return turno;
+}
+
+function formatUltimaActualizacion(date: Date | null): string {
+  if (!date) return "";
+  return date.toLocaleTimeString("es-CL", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
   });
 }
 
+// ─── Types ────────────────────────────────────────────────────────────────────
 type ColumnKey =
   | "id_info"
   | "rut"
@@ -101,6 +114,16 @@ interface ColumnDef {
   format?: (value: unknown, row: Pasajero) => string;
 }
 
+interface EstadoSemana {
+  total_usuarios: number;
+  total_respondieron: number;
+  faltantes: number;
+  total_grupos: number;
+  grupos_completos: number;
+  usuarios: { auth_id: number; respondio: boolean }[];
+}
+
+// ─── Sub-componentes ──────────────────────────────────────────────────────────
 function getCellText(col: ColumnDef, row: Pasajero): string {
   const value = row[col.key];
   if (col.format) return col.format(value, row);
@@ -117,7 +140,6 @@ function ColumnFilterPopover({
   onChange: (val: string) => void;
 }) {
   const hasFilter = value.length > 0;
-
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -159,9 +181,55 @@ function ColumnFilterPopover({
   );
 }
 
+// ─── KPI Card ─────────────────────────────────────────────────────────────────
+function KpiCard({
+  label,
+  value,
+  total,
+  colorClass,
+  barColorClass,
+  footer,
+}: {
+  label: string;
+  value: number;
+  total?: number;
+  colorClass: string;
+  barColorClass?: string;
+  footer?: React.ReactNode;
+}) {
+  const pct = total && total > 0 ? (value / total) * 100 : 0;
+  return (
+    <div className="rounded-lg border bg-card p-4 sm:p-5 flex flex-col gap-2 min-h-[110px]">
+      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        {label}
+      </span>
+      <div className="flex items-end gap-2">
+        <span className={`text-3xl font-bold ${colorClass}`}>{value}</span>
+        {total !== undefined && (
+          <span className="text-lg text-muted-foreground mb-0.5">
+            / {total}
+          </span>
+        )}
+      </div>
+      {barColorClass && total !== undefined && (
+        <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+          <div
+            className={`h-full rounded-full ${barColorClass} transition-all duration-500`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      )}
+      {footer && <p className="text-xs text-muted-foreground">{footer}</p>}
+    </div>
+  );
+}
+
+// ─── Componente principal ─────────────────────────────────────────────────────
 export function PasajerosTable() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  // Estado tabla
   const [data, setData] = useState<Pasajero[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -174,9 +242,53 @@ export function PasajerosTable() {
   const turnoFromUrl = searchParams.get("turno");
   const [turnoFiltro, setTurnoFiltro] = useState<string | null>(turnoFromUrl);
 
-  // Agrega este estado en PasajerosTable
+  // Estado eliminación
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+
+  // Estado KPIs
+  const [estadoSemana, setEstadoSemana] = useState<EstadoSemana | null>(null);
+  const [ultimaActualizacion, setUltimaActualizacion] = useState<Date | null>(
+    null,
+  );
+  const [kpiRefreshing, setKpiRefreshing] = useState(false);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ── Fetches ────────────────────────────────────────────────────────────────
+  const fetchPasajeros = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const url = turnoFiltro
+        ? `/api/pasajeros?turno=${turnoFiltro}`
+        : "/api/pasajeros";
+      const res = await axios.get<Pasajero[]>(url);
+      setData(res.data);
+    } catch (err) {
+      const message =
+        axios.isAxiosError(err) && err.response
+          ? `Error ${err.response.status}: ${err.response.statusText}`
+          : "Error al cargar los datos";
+      setError(message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [turnoFiltro]);
+
+  const fetchEstadoSemana = useCallback(async (showSpinner = false) => {
+    if (showSpinner) setKpiRefreshing(true);
+    try {
+      const res = await axios.get<EstadoSemana>(
+        `${API_BASE}/tmp-reservas/estado-semana`,
+      );
+      setEstadoSemana(res.data);
+      setUltimaActualizacion(new Date());
+    } catch {
+      // silencioso
+    } finally {
+      if (showSpinner) setKpiRefreshing(false);
+    }
+  }, []);
 
   const handleDelete = async () => {
     if (!deletingId) return;
@@ -191,28 +303,7 @@ export function PasajerosTable() {
     }
   };
 
-  const fetchPasajeros = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const url = turnoFiltro
-        ? `/api/pasajeros?turno=${turnoFiltro}`
-        : "/api/pasajeros";
-
-      const res = await axios.get<Pasajero[]>(url);
-      setData(res.data);
-    } catch (err) {
-      const message =
-        axios.isAxiosError(err) && err.response
-          ? `Error ${err.response.status}: ${err.response.statusText}`
-          : "Error al cargar los datos";
-      setError(message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [turnoFiltro]);
-
+  // ── Effects ────────────────────────────────────────────────────────────────
   useEffect(() => {
     const turno = searchParams.get("turno");
     setTurnoFiltro(turno);
@@ -222,14 +313,39 @@ export function PasajerosTable() {
     fetchPasajeros();
   }, [fetchPasajeros]);
 
+  // Polling KPIs — solo cuando el turno es TurnoH
+  useEffect(() => {
+    if (turnoFiltro !== "TurnoH") {
+      setEstadoSemana(null);
+      return;
+    }
+
+    // Fetch inicial
+    fetchEstadoSemana(true);
+
+    // Polling cada 30s
+    pollingRef.current = setInterval(() => {
+      fetchEstadoSemana(false);
+    }, POLLING_INTERVAL_MS);
+
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, [turnoFiltro, fetchEstadoSemana]);
+
+  // ── Memo ───────────────────────────────────────────────────────────────────
+  const respondieronSet = useMemo(() => {
+    if (!estadoSemana) return new Set<number>();
+    return new Set(
+      estadoSemana.usuarios.filter((u) => u.respondio).map((u) => u.auth_id),
+    );
+  }, [estadoSemana]);
+
   const setColumnFilter = useCallback((key: ColumnKey, value: string) => {
     setColumnFilters((prev) => {
       const next = { ...prev };
-      if (value === "") {
-        delete next[key];
-      } else {
-        next[key] = value;
-      }
+      if (value === "") delete next[key];
+      else next[key] = value;
       return next;
     });
     setCurrentPage(1);
@@ -261,11 +377,10 @@ export function PasajerosTable() {
       },
     ];
 
-    // Define columnas a ocultar según el turno
     const columnasAocultarPorTurno: Record<string, ColumnKey[]> = {
-      "4x4": ["grupo_numero"], // ocultar Grupo y Origen
-      "7x7": ["centro_costo", "direccion_destino"], // ocultar CC y Destino
-      TurnoH: [], // no ocultar nada
+      "4x4": ["grupo_numero"],
+      "7x7": ["centro_costo", "direccion_destino"],
+      TurnoH: [],
     };
 
     const columnasAocultar =
@@ -276,7 +391,6 @@ export function PasajerosTable() {
 
   const filteredData = useMemo(() => {
     const globalTerm = globalSearch.toLowerCase().trim();
-
     return data.filter((row) => {
       if (globalTerm) {
         const matchesGlobal = visibleColumns.some((col) =>
@@ -284,15 +398,17 @@ export function PasajerosTable() {
         );
         if (!matchesGlobal) return false;
       }
-
       for (const [key, filterValue] of Object.entries(columnFilters)) {
         if (!filterValue) continue;
         const col = visibleColumns.find((c) => c.key === key);
         if (!col) continue;
-        const cellText = getCellText(col, row).toLowerCase();
-        if (!cellText.includes(filterValue.toLowerCase())) return false;
+        if (
+          !getCellText(col, row)
+            .toLowerCase()
+            .includes(filterValue.toLowerCase())
+        )
+          return false;
       }
-
       return true;
     });
   }, [data, globalSearch, columnFilters, visibleColumns]);
@@ -308,64 +424,33 @@ export function PasajerosTable() {
     setCurrentPage(Math.max(1, Math.min(page, totalPages)));
   }
 
-  function formatTurno(turno: string) {
-    if (turno === "TurnoH") return "Turno H";
-    if (turno === "4x4") return "Turno 4x4";
-    if (turno === "7x7") return "Turno 7x7";
-    return turno;
-  }
-
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-6">
-      {/* Header actions */}
+      {/* ── Header ── */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        {/* Lado izquierdo */}
         <div className="flex flex-col gap-3">
           <h1 className="text-2xl font-bold tracking-tight">Pasajeros</h1>
-
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              size="sm"
-              variant={turnoFiltro === "TurnoH" ? "default" : "outline"}
-              onClick={() =>
-                router.push(
-                  "/dashboard/mantenedor/angloamerican/turno?turno=TurnoH",
-                )
-              }
-            >
-              Turno H
-            </Button>
-
-            <Button
-              size="sm"
-              variant={turnoFiltro === "4x4" ? "default" : "outline"}
-              onClick={() =>
-                router.push(
-                  "/dashboard/mantenedor/angloamerican/turno?turno=4x4",
-                )
-              }
-            >
-              4x4
-            </Button>
-
-            <Button
-              size="sm"
-              variant={turnoFiltro === "7x7" ? "default" : "outline"}
-              onClick={() =>
-                router.push(
-                  "/dashboard/mantenedor/angloamerican/turno?turno=7x7",
-                )
-              }
-            >
-              7x7
-            </Button>
+            {(["TurnoH", "4x4", "7x7"] as const).map((t) => (
+              <Button
+                key={t}
+                size="sm"
+                variant={turnoFiltro === t ? "default" : "outline"}
+                onClick={() =>
+                  router.push(
+                    `/dashboard/mantenedor/angloamerican/turno?turno=${t}`,
+                  )
+                }
+              >
+                {formatTurno(t)}
+              </Button>
+            ))}
           </div>
         </div>
 
-        {/* Lado derecho */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <AddPasajeroDialog onSuccess={fetchPasajeros} />
-
           <Button
             variant="outline"
             onClick={() =>
@@ -373,14 +458,95 @@ export function PasajerosTable() {
             }
           >
             <FileSpreadsheet className="mr-2 h-4 w-4" />
-            Procesar Excel
+            <span className="hidden xs:inline">Procesar Excel</span>
+            <span className="xs:hidden">Excel</span>
           </Button>
         </div>
       </div>
 
-      {/* Search bar */}
+      {/* ── KPI Cards — solo TurnoH ── */}
+      {turnoFiltro === "TurnoH" && (
+        <>
+          {/* Barra de estado de polling */}
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-muted-foreground">
+              Resumen semana actual
+            </p>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              {kpiRefreshing ? (
+                <>
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                  <span>Actualizando…</span>
+                </>
+              ) : ultimaActualizacion ? (
+                <>
+                  <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                  <span>
+                    Actualizado{" "}
+                    <span className="font-medium tabular-nums">
+                      {formatUltimaActualizacion(ultimaActualizacion)}
+                    </span>
+                  </span>
+                  <span className="text-muted-foreground/50">·</span>
+                  <Clock className="h-3 w-3" />
+                  <span>Auto-refresh 30s</span>
+                </>
+              ) : null}
+            </div>
+          </div>
+
+          {estadoSemana ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <KpiCard
+                label="Usuarios respondieron"
+                value={estadoSemana.total_respondieron}
+                total={estadoSemana.total_usuarios}
+                colorClass="text-emerald-600"
+                barColorClass="bg-emerald-500"
+              />
+              <KpiCard
+                label="Grupos completos"
+                value={estadoSemana.grupos_completos}
+                total={estadoSemana.total_grupos}
+                colorClass="text-sky-600"
+                barColorClass="bg-sky-500"
+              />
+              <KpiCard
+                label="Usuarios faltantes"
+                value={estadoSemana.faltantes}
+                colorClass={
+                  estadoSemana.faltantes === 0
+                    ? "text-emerald-600"
+                    : "text-rose-600"
+                }
+                footer={
+                  estadoSemana.faltantes === 0
+                    ? "✅ Todos respondieron esta semana"
+                    : "Aún no han registrado su reserva"
+                }
+              />
+            </div>
+          ) : (
+            /* Skeleton mientras carga la primera vez */
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="rounded-lg border bg-card p-4 sm:p-5 min-h-[110px] flex flex-col gap-3"
+                >
+                  <Skeleton className="h-3 w-32" />
+                  <Skeleton className="h-8 w-20" />
+                  <Skeleton className="h-2 w-full" />
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── Search bar ── */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[240px] max-w-md">
+        <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Buscar en todos los campos..."
@@ -404,6 +570,7 @@ export function PasajerosTable() {
             </button>
           )}
         </div>
+
         {(activeFilterCount > 0 || globalSearch) && (
           <div className="flex items-center gap-2">
             {activeFilterCount > 0 && (
@@ -423,6 +590,7 @@ export function PasajerosTable() {
             </Button>
           </div>
         )}
+
         <Button
           variant="outline"
           size="sm"
@@ -437,7 +605,7 @@ export function PasajerosTable() {
         </Button>
       </div>
 
-      {/* Table */}
+      {/* ── Table ── */}
       <div className="rounded-lg border bg-card overflow-x-auto">
         <Table>
           <TableHeader>
@@ -471,7 +639,7 @@ export function PasajerosTable() {
             ) : error ? (
               <TableRow>
                 <TableCell
-                  colSpan={visibleColumns.length}
+                  colSpan={visibleColumns.length + 1}
                   className="h-24 text-center text-destructive"
                 >
                   {error}
@@ -480,7 +648,7 @@ export function PasajerosTable() {
             ) : paginatedData.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={visibleColumns.length}
+                  colSpan={visibleColumns.length + 1}
                   className="h-24 text-center text-muted-foreground"
                 >
                   {globalSearch || activeFilterCount > 0
@@ -490,7 +658,14 @@ export function PasajerosTable() {
               </TableRow>
             ) : (
               paginatedData.map((p) => (
-                <TableRow key={p.id_info}>
+                <TableRow
+                  key={p.id_info}
+                  className={
+                    turnoFiltro === "TurnoH" && respondieronSet.has(p.auth_id)
+                      ? "bg-emerald-50 dark:bg-emerald-950/20"
+                      : ""
+                  }
+                >
                   <TableCell>{p.rut}</TableCell>
                   <TableCell className="font-medium">{p.nombre}</TableCell>
                   <TableCell>{p.contacto}</TableCell>
@@ -508,10 +683,10 @@ export function PasajerosTable() {
                     <TableCell>{p.grupo_numero}</TableCell>
                   )}
                   <TableCell>{p.centro_costo}</TableCell>
-                  <TableCell className="max-w-[160px] truncate">
+                  <TableCell className="max-w-160px truncate">
                     {p.direccion_origen}
                   </TableCell>
-                  <TableCell className="max-w-[160px] truncate">
+                  <TableCell className="max-w-160px truncate">
                     {p.direccion_destino}
                   </TableCell>
                   <TableCell>{formatHora(p.hora_programada)}</TableCell>
@@ -567,10 +742,10 @@ export function PasajerosTable() {
         </Table>
       </div>
 
-      {/* Pagination */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      {/* ── Pagination ── */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span>Filas por pagina:</span>
+          <span>Filas por página:</span>
           <Select
             value={String(rowsPerPage)}
             onValueChange={(value) => {
@@ -582,20 +757,25 @@ export function PasajerosTable() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="5">5</SelectItem>
-              <SelectItem value="10">10</SelectItem>
-              <SelectItem value="20">20</SelectItem>
-              <SelectItem value="50">50</SelectItem>
-              <SelectItem value="100">100</SelectItem>
+              {[5, 10, 20, 50, 100].map((n) => (
+                <SelectItem key={n} value={String(n)}>
+                  {n}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">
-            Pagina {currentPage} de {totalPages} ({filteredData.length}{" "}
-            {filteredData.length !== data.length ? `de ${data.length} ` : ""}
-            registros)
+          <span className="text-sm text-muted-foreground text-center sm:text-left">
+            Pág. {currentPage}/{totalPages}{" "}
+            <span className="hidden sm:inline">
+              ({filteredData.length}
+              {filteredData.length !== data.length
+                ? ` de ${data.length} `
+                : " "}
+              registros)
+            </span>
           </span>
           <div className="flex items-center gap-1">
             <Button
@@ -606,7 +786,7 @@ export function PasajerosTable() {
               disabled={currentPage === 1}
             >
               <ChevronsLeft className="h-4 w-4" />
-              <span className="sr-only">Primera pagina</span>
+              <span className="sr-only">Primera página</span>
             </Button>
             <Button
               variant="outline"
@@ -616,7 +796,7 @@ export function PasajerosTable() {
               disabled={currentPage === 1}
             >
               <ChevronLeft className="h-4 w-4" />
-              <span className="sr-only">Pagina anterior</span>
+              <span className="sr-only">Página anterior</span>
             </Button>
             <Button
               variant="outline"
@@ -626,7 +806,7 @@ export function PasajerosTable() {
               disabled={currentPage === totalPages}
             >
               <ChevronRight className="h-4 w-4" />
-              <span className="sr-only">Pagina siguiente</span>
+              <span className="sr-only">Página siguiente</span>
             </Button>
             <Button
               variant="outline"
@@ -636,12 +816,13 @@ export function PasajerosTable() {
               disabled={currentPage === totalPages}
             >
               <ChevronsRight className="h-4 w-4" />
-              <span className="sr-only">Ultima pagina</span>
+              <span className="sr-only">Última página</span>
             </Button>
           </div>
         </div>
       </div>
-      {/* Dialog de Alerta de eliminación */}
+
+      {/* ── Alert eliminación ── */}
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
