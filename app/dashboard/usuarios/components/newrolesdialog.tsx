@@ -61,6 +61,11 @@ const menuItems: MenuItem[] = [
         url: "/dashboard/operaciones/inspecciones",
         external: false,
       },
+      {
+        title: "Calendario Inspecciones",
+        url: "/dashboard/operaciones/calendario",
+        external: false,
+      },
     ],
   },
   {
@@ -101,7 +106,6 @@ const menuItems: MenuItem[] = [
     url: "#",
     icon: "Headset",
     items: [
-      { title: "Codigo Activacion", url: "#", external: false },
       { title: "Correos", url: "/dashboard/correos", external: false },
       { title: "EcotransGO", url: "#", external: false },
       { title: "Hualpen", url: "#", external: false },

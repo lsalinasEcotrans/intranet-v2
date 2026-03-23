@@ -15,7 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Plus } from "lucide-react";
 
 export default function NuevaInspeccionDialog() {
   const [open, setOpen] = useState(false);
@@ -56,7 +56,9 @@ export default function NuevaInspeccionDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>+ Nueva revisión</Button>
+        <Button size="sm">
+          <Plus /> Nueva revisión
+        </Button>
       </DialogTrigger>
 
       <DialogContent>

@@ -14,6 +14,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
+import { RefreshCcw } from "lucide-react";
+import ExportarInspeccionesDialog from "./components/ExportarInspeccionesDialog";
 
 export interface Inspeccion {
   id: number;
@@ -125,12 +127,13 @@ export default function InspeccionesPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <ExportarInspeccionesDialog />
           <Button
             size="sm"
             variant="outline"
             onClick={() => fetchInspecciones()}
           >
-            ↻ Actualizar
+            <RefreshCcw /> Actualizar
           </Button>
           <NuevaInspeccionDialog />
         </div>

@@ -111,6 +111,9 @@ export default function FormTurnoHCreate({ authId, grupoNumero }: Props) {
       detalle_json: detalle_json,
     };
 
+    // 👇 AQUÍ
+    console.log("PAYLOAD QUE SE ENVIA:", payload);
+
     try {
       setLoading(true);
 
@@ -124,6 +127,9 @@ export default function FormTurnoHCreate({ authId, grupoNumero }: Props) {
       );
 
       const data = await res.json();
+
+      // 👇 Y AQUÍ TAMBIÉN (muy importante)
+      console.log("RESPUESTA DEL BACKEND:", data);
       if (!res.ok) throw new Error(data.detail || "Error al guardar");
 
       toast.success("Turno H creado correctamente");

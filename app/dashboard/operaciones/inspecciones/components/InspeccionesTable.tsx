@@ -15,7 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { Inspeccion } from "../page";
 import InspeccionDetalle from "./InspeccionDetalle";
 import InspeccionEditar from "./InspeccionEditar";
-import { CheckCircle, XCircle } from "lucide-react";
+import { CheckCircle, XCircle, Search } from "lucide-react";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("es-CL", {
@@ -75,7 +75,9 @@ export default function InspeccionesTable({
   if (!inspecciones.length) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-        <p className="text-4xl mb-3">🔍</p>
+        <p className="text-4xl mb-3">
+          <Search className="w-9 h-9" />
+        </p>
         <p className="text-sm">No se encontraron inspecciones</p>
       </div>
     );
