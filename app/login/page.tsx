@@ -14,7 +14,25 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle, AlertTriangle } from "lucide-react";
+
+interface LoginResponse {
+  success: boolean;
+  error?: string;
+  requiresPasswordChange?: boolean;
+  redirectTo?: string;
+  user?: {
+    id: number;
+    username: string;
+    fullName: string;
+    role: string;
+    correo: string;
+    passwordExpiringWarning?: {
+      message: string;
+      daysLeft: number;
+    };
+  };
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,13 +40,27 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [warning, setWarning] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setWarning("");
     setLoading(true);
 
     try {
+      // Validación básica de cliente
+      if (!username.trim()) {
+        setError("Ingresa tu usuario");
+        setLoading(false);
+        return;
+      }
+      if (!password) {
+        setError("Ingresa tu contraseña");
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
@@ -37,23 +69,54 @@ export default function LoginPage() {
         body: JSON.stringify({ username, password }),
       });
 
-      const data = await response.json();
+      const data: LoginResponse = await response.json();
 
+      // Manejo de errores específicos
       if (!response.ok) {
-        throw new Error(data.error || "Error al iniciar sesión");
+        // Si requiere cambio de contraseña
+        if (data.requiresPasswordChange && data.redirectTo) {
+          setError(data.error || "Acción requerida");
+          // Redirigir después de 2 segundos
+          setTimeout(() => {
+            router.push(data.redirectTo!);
+          }, 2000);
+          return;
+        }
+
+        // Otros errores
+        setError(data.error || "Error al iniciar sesión");
+        return;
       }
 
-      // Redirigir al dashboard si todo es correcto
-      router.push("/dashboard");
+      // Si hay advertencia de contraseña próxima a expirar
+      if (data.user?.passwordExpiringWarning) {
+        setWarning(
+          `⚠️ ${data.user.passwordExpiringWarning.message}. Te recomendamos cambiarla pronto.`,
+        );
+      }
+
+      // Login exitoso
+      if (data.success) {
+        // Si hay warning, esperar a que el usuario lo vea
+        if (warning) {
+          setTimeout(() => router.push("/dashboard"), 2000);
+        } else {
+          router.push("/dashboard");
+        }
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al iniciar sesión");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Error de conexión con el servidor",
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 to-indigo-100 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">
@@ -75,6 +138,7 @@ export default function LoginPage() {
                 onChange={(e) => setUsername(e.target.value)}
                 required
                 disabled={loading}
+                autoComplete="username"
               />
             </div>
             <div className="space-y-2">
@@ -96,12 +160,23 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={loading}
+                autoComplete="current-password"
               />
             </div>
 
             {error && (
               <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {warning && (
+              <Alert className="bg-amber-50 border-amber-200">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-amber-800">
+                  {warning}
+                </AlertDescription>
               </Alert>
             )}
 
