@@ -117,17 +117,6 @@ export function RolesTab() {
     try {
       const res = await axios.get<Role[]>(API_ENDPOINTS.roles);
       setRoles(res.data);
-
-      // Build available modules from all roles
-      const allMenus = res.data.flatMap((r) => r.json_menu || []);
-      // Get unique modules
-      const uniqueModules = allMenus.reduce<Module[]>((acc, mod) => {
-        if (!acc.find((m) => m.title === mod.title)) {
-          acc.push(mod);
-        }
-        return acc;
-      }, []);
-      setAvailableModules(uniqueModules);
     } catch (err) {
       const axiosError = err as AxiosError<ApiError>;
       const errorMessage =
@@ -216,10 +205,7 @@ export function RolesTab() {
           />
         </div>
 
-        <NewRoleDialog
-          onRoleCreated={loadRoles}
-          availableModules={availableModules}
-        />
+        <NewRoleDialog onRoleCreated={loadRoles} />
       </div>
 
       {/* Table */}
