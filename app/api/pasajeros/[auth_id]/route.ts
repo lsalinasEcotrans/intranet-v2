@@ -6,76 +6,67 @@ const API_URL =
 
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ id_info: string }> }
+  context: { params: Promise<{ auth_id: string }> },
 ) {
   try {
-    const { id_info } = await context.params;
+    const { auth_id } = await context.params;
 
-    const { data } = await axios.get(`${API_URL}/auth/${id_info}`);
+    const { data } = await axios.get(`${API_URL}/auth/${auth_id}`);
 
     return NextResponse.json(data);
   } catch (err) {
     if (axios.isAxiosError(err) && err.response) {
       return NextResponse.json(
         { error: "Pasajero no encontrado" },
-        { status: err.response.status }
+        { status: err.response.status },
       );
     }
 
-    return NextResponse.json(
-      { error: "Error de conexión" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Error de conexión" }, { status: 500 });
   }
 }
 
 export async function PUT(
   request: NextRequest,
-  context: { params: Promise<{ id_info: string }> }
+  context: { params: Promise<{ auth_id: string }> },
 ) {
   try {
-    const { id_info } = await context.params;
+    const { auth_id } = await context.params;
     const body = await request.json();
 
-    const { data } = await axios.put(`${API_URL}/${id_info}`, body);
+    const { data } = await axios.put(`${API_URL}/${auth_id}`, body);
 
     return NextResponse.json(data);
   } catch (err) {
     if (axios.isAxiosError(err) && err.response) {
       return NextResponse.json(
         { error: "Error al actualizar pasajero" },
-        { status: err.response.status }
+        { status: err.response.status },
       );
     }
 
-    return NextResponse.json(
-      { error: "Error de conexión" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Error de conexión" }, { status: 500 });
   }
 }
 
 export async function DELETE(
   request: NextRequest,
-  context: { params: Promise<{ id_info: string }> }
+  context: { params: Promise<{ auth_id: string }> },
 ) {
   try {
-    const { id_info } = await context.params;
+    const { auth_id } = await context.params;
 
-    const { data } = await axios.delete(`${API_URL}/${id_info}`);
+    const { data } = await axios.delete(`${API_URL}/${auth_id}`);
 
     return NextResponse.json(data);
   } catch (err) {
     if (axios.isAxiosError(err) && err.response) {
       return NextResponse.json(
         { error: "Error al eliminar pasajero" },
-        { status: err.response.status }
+        { status: err.response.status },
       );
     }
 
-    return NextResponse.json(
-      { error: "Error de conexión" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Error de conexión" }, { status: 500 });
   }
 }

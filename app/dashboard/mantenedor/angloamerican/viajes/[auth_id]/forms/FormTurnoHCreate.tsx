@@ -30,6 +30,22 @@ interface Props {
   grupoNumero: string;
 }
 
+function getUserFromCookie() {
+  const cookies = document.cookie.split("; ");
+  const userCookie = cookies.find((row) => row.startsWith("user_data="));
+
+  if (!userCookie) return null;
+
+  try {
+    const value = userCookie.split("=")[1];
+    const decoded = decodeURIComponent(value);
+    return JSON.parse(decoded);
+  } catch (error) {
+    console.error("Error parseando cookie user_data", error);
+    return null;
+  }
+}
+
 export default function FormTurnoHCreate({ authId, grupoNumero }: Props) {
   const [turnosSeleccionados, setTurnosSeleccionados] = useState<
     TurnoSeleccionado[]
@@ -75,6 +91,8 @@ export default function FormTurnoHCreate({ authId, grupoNumero }: Props) {
   const cancelarNoViaja = () => setNoViaja(false);
 
   const handleGuardar = async () => {
+    const user = getUserFromCookie();
+    const username = user?.username || "system";
     if (!authId || !grupoNumero) {
       toast.error("Datos invalidos desde la API");
       return;
@@ -109,10 +127,9 @@ export default function FormTurnoHCreate({ authId, grupoNumero }: Props) {
       grupo_numero: grupoNumero,
       tipo_turno: "H",
       detalle_json: detalle_json,
+      // 👇 NUEVO
+      user_log: username,
     };
-
-    // 👇 AQUÍ
-    console.log("PAYLOAD QUE SE ENVIA:", payload);
 
     try {
       setLoading(true);
@@ -128,8 +145,6 @@ export default function FormTurnoHCreate({ authId, grupoNumero }: Props) {
 
       const data = await res.json();
 
-      // 👇 Y AQUÍ TAMBIÉN (muy importante)
-      console.log("RESPUESTA DEL BACKEND:", data);
       if (!res.ok) throw new Error(data.detail || "Error al guardar");
 
       toast.success("Turno H creado correctamente");

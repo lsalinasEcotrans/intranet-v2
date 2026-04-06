@@ -36,7 +36,7 @@ export default function NuevaInspeccionDialog() {
 
     try {
       const res = await fetch(
-        `/api/ghost/Search/inspeccion?registration=${valor}`,
+        `/api/ghost/search/inspeccion?registration=${valor}`,
       );
 
       const json = await res.json();

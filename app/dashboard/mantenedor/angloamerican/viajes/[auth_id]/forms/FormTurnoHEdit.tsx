@@ -31,6 +31,22 @@ interface Props {
   detalleViaje: any;
 }
 
+function getUserFromCookie() {
+  const cookies = document.cookie.split("; ");
+  const userCookie = cookies.find((row) => row.startsWith("user_data="));
+
+  if (!userCookie) return null;
+
+  try {
+    const value = userCookie.split("=")[1];
+    const decoded = decodeURIComponent(value);
+    return JSON.parse(decoded);
+  } catch (error) {
+    console.error("Error parseando cookie user_data", error);
+    return null;
+  }
+}
+
 export default function FormTurnoHEdit({
   authId,
   grupoNumero,
@@ -115,6 +131,8 @@ export default function FormTurnoHEdit({
 
   /* ── Actualizar Turno H ────────────────────────────────────────────────── */
   const handleActualizar = async () => {
+    const user = getUserFromCookie();
+    const username = user?.username || "system";
     if (!authId || !grupoNumero) {
       toast.error("Datos invalidos desde la API");
       return;
@@ -145,18 +163,20 @@ export default function FormTurnoHEdit({
 
     try {
       setLoading(true);
+      const payload = {
+        auth_id: authId,
+        grupo_numero: grupoNumero,
+        tipo_turno: "H",
+        detalle_json,
+        user_log: username,
+      };
 
       const res = await fetch(
         "https://ecotrans-pasajero-370980788525.europe-west1.run.app/tmp-reservas/detalle",
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            auth_id: authId,
-            grupo_numero: grupoNumero,
-            tipo_turno: "H",
-            detalle_json,
-          }),
+          body: JSON.stringify(payload),
         },
       );
 

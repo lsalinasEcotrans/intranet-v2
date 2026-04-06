@@ -114,7 +114,10 @@ const menuItems: MenuItem[] = [
     title: "Reportes",
     url: "#",
     icon: "FileChartPieIcon",
-    items: [{ title: "General3", url: "#" }],
+    items: [
+      { title: "Cuadro PCM", url: "/reportes/cuadropcm" },
+      { title: "Indicadores de Desempeño", url: "/reportes/indicadores" },
+    ],
   },
   {
     title: "Taller",

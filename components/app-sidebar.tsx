@@ -123,7 +123,7 @@ export function AppSidebar({ user, menuItems, ...props }: AppSidebarProps) {
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="text-xl font-medium font-ecotrans">
                     <span className="text-verde">Eco</span>
-                    <span className="text-negro">trans</span>
+                    <span className="text-foreground">trans</span>
                   </span>
                 </div>
               </a>

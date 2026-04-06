@@ -51,6 +51,22 @@ interface Suggestion {
   customAddressID?: number | null;
 }
 
+function getUserFromCookie() {
+  const cookies = document.cookie.split("; ");
+  const userCookie = cookies.find((row) => row.startsWith("user_data="));
+
+  if (!userCookie) return null;
+
+  try {
+    const value = userCookie.split("=")[1];
+    const decoded = decodeURIComponent(value);
+    return JSON.parse(decoded);
+  } catch (error) {
+    console.error("Error parseando cookie user_data", error);
+    return null;
+  }
+}
+
 export function AddPasajeroDialog({ onSuccess }: AddPasajeroDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -184,6 +200,8 @@ export function AddPasajeroDialog({ onSuccess }: AddPasajeroDialogProps) {
   }
 
   async function handleSubmit(e: React.FormEvent) {
+    const user = getUserFromCookie();
+    const username = user?.username || "system";
     e.preventDefault();
 
     if (loading) return;
@@ -218,6 +236,8 @@ export function AddPasajeroDialog({ onSuccess }: AddPasajeroDialogProps) {
         direccion_destino: form.direccion_destino,
         latitud_destino: latDestino,
         longitud_destino: lngDestino,
+        // 👇 NUEVO
+        user_log: username,
       };
 
       await axios.post(

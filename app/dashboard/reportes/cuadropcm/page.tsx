@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Landmark, Plane, Pickaxe } from "lucide-react";
+import { VehicleReportDialog } from "./vehiclereportdialog";
 
 // ─────────────────────────────────────────────
 // TIPOS
@@ -365,8 +366,13 @@ function renderIcons(v: Vehicle) {
 // ─────────────────────────────────────────────
 // PÁGINA PRINCIPAL
 // ─────────────────────────────────────────────
-export default function FlotaPageReadOnly() {
+export default function FlotaPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedVehicle, setSelectedVehicle] = useState<{
+    id: number;
+    callsign: string;
+    capabilities: number[];
+  } | null>(null);
 
   const { data, isFetching, isError, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["flota"],
@@ -506,9 +512,16 @@ export default function FlotaPageReadOnly() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
             {filteredVehicles.map((v) => (
-              <div
+              <button
                 key={v.id}
-                className={`h-40 rounded-xl border-2 p-2 flex flex-col items-center justify-center text-center ${getStatusColor(v, data.bookingsCount)}`}
+                onClick={() =>
+                  setSelectedVehicle({
+                    id: v.id,
+                    callsign: v.callsign ?? "",
+                    capabilities: v.capabilities ?? [],
+                  })
+                }
+                className={`h-40 rounded-xl border-2 p-2 flex flex-col items-center justify-center text-center transition-all hover:shadow-lg hover:scale-105 active:scale-95 cursor-pointer ${getStatusColor(v, data.bookingsCount)}`}
               >
                 <span className="text-xl font-bold">{v.callsign || "N/A"}</span>
                 <span className="text-xs mt-1 opacity-90">
@@ -521,11 +534,19 @@ export default function FlotaPageReadOnly() {
                 <span className="text-[10px] mt-1 font-semibold">
                   {data.bookingsCount.get(v.callsign || "") || 0} serv.
                 </span>
-              </div>
+              </button>
             ))}
           </div>
         )}
       </Card>
+
+      {/* Dialog de reporte por móvil */}
+      <VehicleReportDialog
+        vehicleId={selectedVehicle?.id ?? null}
+        callsign={selectedVehicle?.callsign ?? null}
+        capabilities={selectedVehicle?.capabilities ?? []}
+        onClose={() => setSelectedVehicle(null)}
+      />
     </div>
   );
 }

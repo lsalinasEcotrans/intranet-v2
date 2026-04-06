@@ -46,7 +46,7 @@ export default function EmailModal({
             variant="ghost"
             size="icon"
             onClick={onClose}
-            className="flex-shrink-0"
+            className="shrink-0"
           >
             <X className="w-5 h-5" />
           </Button>
@@ -85,7 +85,7 @@ export default function EmailModal({
                       day: "numeric",
                       hour: "2-digit",
                       minute: "2-digit",
-                    }
+                    },
                   )}
                 </p>
               </div>
