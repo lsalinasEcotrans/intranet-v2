@@ -26,8 +26,8 @@ export async function generarPDF(
   const doc = new jsPDF();
 
   // ✅ Parsear fechas del rango seleccionado
-  const dateFrom = new Date(fechaDesde);
-  const dateTo = new Date(fechaHasta);
+  const dateFrom = new Date(fechaDesde + "T00:00:00");
+  const dateTo = new Date(fechaHasta + "T00:00:00");
 
   // Determinar mes y año para el título
   let titulo = "Vehículos Revisados";
@@ -63,10 +63,16 @@ export async function generarPDF(
 
   const chunkSize = 20; // 20 registros por página
 
-  for (let i = 0; i < data.length; i += chunkSize) {
+  const sortedData = [...data].sort((a, b) => {
+    const numA = Number(a.callsign) || 0;
+    const numB = Number(b.callsign) || 0;
+    return numA - numB;
+  });
+
+  for (let i = 0; i < sortedData.length; i += chunkSize) {
     if (i > 0) doc.addPage();
 
-    const chunk = data.slice(i, i + chunkSize);
+    const chunk = sortedData.slice(i, i + chunkSize);
 
     // Logo primero
     doc.addImage(logoBase64, "PNG", logoX, logoY, logoW, logoH);

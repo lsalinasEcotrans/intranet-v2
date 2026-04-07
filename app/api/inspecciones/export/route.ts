@@ -15,9 +15,13 @@ export async function GET(req: NextRequest) {
       const value = searchParams.get(key);
       if (value) baseParams.set(key, value);
     }
+    // 👉 Si no viene estado, usar "aprobado" por defecto
+    if (!baseParams.get("estado")) {
+      baseParams.set("estado", "aprobado");
+    }
 
     // ✅ PAGINACIÓN MANUAL: Traer todos los registros en lotes de 100
-    let allItems = [];
+    let allItems: unknown[] = [];
     let page = 1;
     let hasMore = true;
 
