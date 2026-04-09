@@ -704,7 +704,7 @@ export function PasajerosTable() {
                         <DropdownMenuItem
                           onClick={() =>
                             router.push(
-                              `/dashboard/mantenedor/angloamerican/${p.id_info}`,
+                              `/dashboard/mantenedor/angloamerican/${p.auth_id}`,
                             )
                           }
                         >
@@ -714,7 +714,7 @@ export function PasajerosTable() {
                         <DropdownMenuItem
                           onClick={() =>
                             router.push(
-                              `/dashboard/mantenedor/angloamerican/viajes/${p.id_info}`,
+                              `/dashboard/mantenedor/angloamerican/viajes/${p.auth_id}`,
                             )
                           }
                         >
@@ -725,7 +725,7 @@ export function PasajerosTable() {
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
                           onClick={() => {
-                            setDeletingId(p.id_info);
+                            setDeletingId(p.auth_id);
                             setConfirmOpen(true);
                           }}
                         >

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { addDays, startOfWeek, format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useRouter } from "next/navigation";
@@ -28,9 +28,30 @@ import type { Turno, TurnoSeleccionado } from "@/components/turno-h/shift-grid";
 interface Props {
   authId: number;
   grupoNumero: string;
+  detalleViaje: any;
 }
 
-export default function FormTurnoHCreate({ authId, grupoNumero }: Props) {
+function getUserFromCookie() {
+  const cookies = document.cookie.split("; ");
+  const userCookie = cookies.find((row) => row.startsWith("user_data="));
+
+  if (!userCookie) return null;
+
+  try {
+    const value = userCookie.split("=")[1];
+    const decoded = decodeURIComponent(value);
+    return JSON.parse(decoded);
+  } catch (error) {
+    console.error("Error parseando cookie user_data", error);
+    return null;
+  }
+}
+
+export default function FormTurnoHEdit({
+  authId,
+  grupoNumero,
+  detalleViaje,
+}: Props) {
   const [turnosSeleccionados, setTurnosSeleccionados] = useState<
     TurnoSeleccionado[]
   >([]);
@@ -44,6 +65,40 @@ export default function FormTurnoHCreate({ authId, grupoNumero }: Props) {
     [],
   );
 
+  /* ── Precargar datos desde API ─────────────────────────────────────────── */
+  useEffect(() => {
+    if (!detalleViaje) return;
+
+    if (detalleViaje.modo === "no_viaja") {
+      setNoViaja(true);
+      setTurnosSeleccionados([]);
+      return;
+    }
+
+    if (detalleViaje.modo === "dias_seleccionados" && detalleViaje.dias) {
+      const turnos: TurnoSeleccionado[] = [];
+
+      detalleViaje.dias.forEach((d: any) => {
+        const diaKey = d.dia
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "");
+
+        if (d.turnos && Array.isArray(d.turnos)) {
+          d.turnos.forEach((t: Turno) => {
+            turnos.push({ dia: diaKey, turno: t });
+          });
+        } else {
+          // Fallback: si no tiene turnos, asumir manana
+          turnos.push({ dia: diaKey, turno: "manana" });
+        }
+      });
+
+      setTurnosSeleccionados(turnos);
+    }
+  }, [detalleViaje]);
+
+  /* ── Fechas calculadas ─────────────────────────────────────────────────── */
   const fechasCalculadas = useMemo(() => {
     if (turnosSeleccionados.length === 0) return [];
     const diasUnicos = [...new Set(turnosSeleccionados.map((t) => t.dia))];
@@ -74,7 +129,10 @@ export default function FormTurnoHCreate({ authId, grupoNumero }: Props) {
 
   const cancelarNoViaja = () => setNoViaja(false);
 
-  const handleGuardar = async () => {
+  /* ── Actualizar Turno H ────────────────────────────────────────────────── */
+  const handleActualizar = async () => {
+    const user = getUserFromCookie();
+    const username = user?.username || "system";
     if (!authId || !grupoNumero) {
       toast.error("Datos invalidos desde la API");
       return;
@@ -91,7 +149,6 @@ export default function FormTurnoHCreate({ authId, grupoNumero }: Props) {
       detalle_json = {
         modo: "no_viaja",
         semana: format(lunesSemanaSiguiente, "yyyy-MM-dd"),
-        mensaje: "No viajara esta semana",
       };
     } else {
       detalle_json = {
@@ -104,29 +161,29 @@ export default function FormTurnoHCreate({ authId, grupoNumero }: Props) {
       };
     }
 
-    const payload = {
-      auth_id: authId,
-      grupo_numero: grupoNumero,
-      tipo_turno: "H",
-      detalle_json: detalle_json,
-    };
-
     try {
       setLoading(true);
+      const payload = {
+        auth_id: authId,
+        grupo_numero: grupoNumero,
+        tipo_turno: "H",
+        detalle_json,
+        user_log: username,
+      };
 
       const res = await fetch(
-        `https://ecotrans-pasajero-370980788525.europe-west1.run.app/tmp-reservas`,
+        "https://ecotrans-pasajero-370980788525.europe-west1.run.app/tmp-reservas/detalle",
         {
-          method: "POST",
+          method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         },
       );
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Error al guardar");
+      if (!res.ok) throw new Error(data.detail || "Error al actualizar");
 
-      toast.success("Turno H creado correctamente");
+      toast.success("Turno H actualizado correctamente");
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : "Error desconocido";
@@ -136,6 +193,7 @@ export default function FormTurnoHCreate({ authId, grupoNumero }: Props) {
     }
   };
 
+  /* ── UI ────────────────────────────────────────────────────────────────── */
   const selectedCount = turnosSeleccionados.length;
 
   return (
@@ -156,7 +214,7 @@ export default function FormTurnoHCreate({ authId, grupoNumero }: Props) {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-foreground tracking-tight">
-              Crear Viaje Turno H
+              Editar Turno H
             </h1>
             <p className="text-sm text-muted-foreground">
               Semana del{" "}
@@ -171,13 +229,13 @@ export default function FormTurnoHCreate({ authId, grupoNumero }: Props) {
 
         {/* Two-column layout */}
         <div className="flex flex-col lg:flex-row gap-6 lg:items-start">
-          {/* Left column - Day selection */}
+          {/* Left column - Shift selection */}
           <div className="flex-1 min-w-0 space-y-4">
             <Card className="border-0 shadow-lg overflow-hidden">
               <CardContent className="p-5 md:p-6 space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-sm font-semibold text-foreground">
-                    Selecciona tus turnos
+                    Modifica tus turnos
                   </h2>
                   {selectedCount > 0 && (
                     <Badge variant="secondary" className="text-xs">
@@ -222,21 +280,21 @@ export default function FormTurnoHCreate({ authId, grupoNumero }: Props) {
             </Card>
           </div>
 
-          {/* Right column - Summary + Save */}
+          {/* Right column - Summary + Update */}
           <div className="lg:w-80 xl:w-96 lg:sticky lg:top-8 space-y-4">
             <ShiftSummary
               noViaja={noViaja}
               fechasCalculadas={fechasCalculadas}
             />
 
-            {/* Save button */}
+            {/* Update button */}
             <Button
               className="w-full h-12 text-base font-semibold rounded-xl shadow-lg shadow-primary/20 cursor-pointer"
-              onClick={handleGuardar}
+              onClick={handleActualizar}
               disabled={loading}
               size="lg"
             >
-              {loading ? "Guardando..." : "Guardar Turno H"}
+              {loading ? "Actualizando..." : "Actualizar Turno H"}
             </Button>
           </div>
         </div>

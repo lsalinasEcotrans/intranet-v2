@@ -64,16 +64,25 @@ export function AppSidebar({ user, menuItems, ...props }: AppSidebarProps) {
 
   // Transformar menuItems de la API al formato que espera NavMain
   const navMain = React.useMemo(() => {
-    return menuItems.map((item) => ({
-      title: item.title,
-      url: item.url,
-      icon: getIcon(item.icon),
-      items: item.items.map((subItem) => ({
-        title: subItem.title,
-        url: subItem.url,
-        external: subItem.external === true,
-      })),
-    }));
+    return (
+      [...menuItems]
+        // 🔥 ordenar módulos principales
+        .sort((a, b) => a.title.localeCompare(b.title))
+        .map((item) => ({
+          title: item.title,
+          url: item.url,
+          icon: getIcon(item.icon),
+
+          // 🔥 ordenar subitems también
+          items: (item.items || [])
+            .sort((a, b) => a.title.localeCompare(b.title))
+            .map((subItem) => ({
+              title: subItem.title,
+              url: subItem.url,
+              external: subItem.external === true,
+            })),
+        }))
+    );
   }, [menuItems]);
 
   // Datos del usuario para NavUser
@@ -114,7 +123,7 @@ export function AppSidebar({ user, menuItems, ...props }: AppSidebarProps) {
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="text-xl font-medium font-ecotrans">
                     <span className="text-verde">Eco</span>
-                    <span className="text-negro">trans</span>
+                    <span className="text-foreground">trans</span>
                   </span>
                 </div>
               </a>

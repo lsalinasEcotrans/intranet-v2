@@ -49,17 +49,18 @@ const menuItems: MenuItem[] = [
       {
         title: "Contratos",
         url: "/dashboard/operaciones/contratos",
-        external: false,
       },
       {
         title: "Seguros",
-        url: "/dashboard/operaciones/flota",
-        external: false,
+        url: "/dashboard/operaciones/seguros",
       },
       {
         title: "Inspecciones",
         url: "/dashboard/operaciones/inspecciones",
-        external: false,
+      },
+      {
+        title: "Calendario Inspecciones",
+        url: "/dashboard/operaciones/calendario",
       },
     ],
   },
@@ -67,21 +68,21 @@ const menuItems: MenuItem[] = [
     title: "Contabilidad",
     url: "#",
     icon: "HandCoins",
-    items: [{ title: "General1", url: "#", external: false }],
+    items: [{ title: "General1", url: "#" }],
   },
   {
     title: "Facturacion",
     url: "#",
     icon: "FileCheck",
-    items: [{ title: "General2", url: "#", external: false }],
+    items: [{ title: "General2", url: "#" }],
   },
   {
     title: "Cargas Masivas",
     url: "#",
     icon: "Database",
     items: [
-      { title: "Banco de Chile", url: "#", external: false },
-      { title: "Hualpen", url: "#", external: false },
+      { title: "Banco de Chile", url: "#" },
+      { title: "Hualpen", url: "#" },
     ],
   },
   {
@@ -92,7 +93,6 @@ const menuItems: MenuItem[] = [
       {
         title: "Anglo American",
         url: "/dashboard/mantenedor/angloamerican",
-        external: false,
       },
     ],
   },
@@ -101,18 +101,11 @@ const menuItems: MenuItem[] = [
     url: "#",
     icon: "Headset",
     items: [
-      { title: "Codigo Activacion", url: "#", external: false },
-      { title: "Correos", url: "/dashboard/correos", external: false },
-      { title: "EcotransGO", url: "#", external: false },
-      { title: "Hualpen", url: "#", external: false },
-      { title: "Libro Novedades", url: "#", external: false },
-      { title: "Servicios Pendientes", url: "#", external: false },
-      { title: "Suspendidos", url: "#", external: false },
-      { title: "Turnos", url: "#", external: false },
-      { title: "Turnos Moviles", url: "#", external: false },
+      { title: "Correos", url: "/dashboard/correos" },
+      { title: "Cuadro PCM", url: "/locucion/cuadropcm" },
       {
         title: "OWA Correo",
-        url: "https://outlook.office.com/mail/",
+        url: "/owacorreo",
         external: true,
       },
     ],
@@ -121,28 +114,31 @@ const menuItems: MenuItem[] = [
     title: "Reportes",
     url: "#",
     icon: "FileChartPieIcon",
-    items: [{ title: "General3", url: "#", external: false }],
+    items: [
+      { title: "Cuadro PCM", url: "/reportes/cuadropcm" },
+      { title: "Indicadores de Desempeño", url: "/reportes/indicadores" },
+    ],
   },
   {
     title: "Taller",
     url: "#",
     icon: "Wrench",
     items: [
-      { title: "OTs", url: "#", external: false },
-      { title: "Presupuestos", url: "#", external: false },
+      { title: "OTs", url: "#" },
+      { title: "Presupuestos", url: "#" },
     ],
   },
   {
     title: "Sistemas",
     url: "#",
     icon: "MonitorCog",
-    items: [{ title: "Usuarios", url: "/dashboard/usuarios", external: false }],
+    items: [{ title: "Usuarios", url: "/dashboard/usuarios" }],
   },
   {
     title: "Pruebas",
     url: "#",
     icon: "FlaskConical",
-    items: [{ title: "Test", url: "/dashboard/test", external: false }],
+    items: [{ title: "Test", url: "/dashboard/test" }],
   },
 ];
 

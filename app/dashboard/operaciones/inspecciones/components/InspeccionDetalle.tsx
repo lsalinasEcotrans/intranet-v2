@@ -360,7 +360,7 @@ export default function InspeccionDetalle({
                     .filter(Boolean)
                     .join(" "),
                 ],
-                ["CPC", inspeccion.cpc_card_number],
+                ["Licencia", inspeccion.cpc_card_number],
               ]
                 .map(
                   ([l, v]) =>
@@ -552,7 +552,7 @@ export default function InspeccionDetalle({
                         .filter(Boolean)
                         .join(" "),
                     ],
-                    ["CPC", inspeccion.cpc_card_number],
+                    ["Licencia", inspeccion.cpc_card_number],
                   ].map(([l, v]) => (
                     <div key={String(l)} className="flex gap-2 text-xs">
                       <dt className="text-muted-foreground w-16 shrink-0">

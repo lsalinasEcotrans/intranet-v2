@@ -6,14 +6,12 @@ const API_URL =
 
 export async function PATCH(
   request: NextRequest,
-  context: { params: Promise<{ id_info: string }> },
+  context: { params: Promise<{ auth_id: string }> },
 ) {
   try {
-    const { id_info } = await context.params;
+    const { auth_id } = await context.params;
 
-    const { data } = await axios.patch(
-      `${API_URL}/${id_info}/reset-password`,
-    );
+    const { data } = await axios.patch(`${API_URL}/${auth_id}/reset-password`);
 
     return NextResponse.json(data);
   } catch (err) {
@@ -24,9 +22,6 @@ export async function PATCH(
       );
     }
 
-    return NextResponse.json(
-      { error: "Error de conexión" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Error de conexión" }, { status: 500 });
   }
 }

@@ -15,7 +15,22 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { Inspeccion } from "../page";
 import InspeccionDetalle from "./InspeccionDetalle";
 import InspeccionEditar from "./InspeccionEditar";
-import { CheckCircle, XCircle } from "lucide-react";
+import {
+  CheckCircle,
+  XCircle,
+  Search,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+  ChevronDown,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("es-CL", {
@@ -50,6 +65,138 @@ function EstadoBadge({ estado }: { estado: "aprobado" | "rechazado" }) {
   );
 }
 
+type SortField =
+  | "registration"
+  | "make"
+  | "forename"
+  | "estado"
+  | "fecha_creacion"
+  | "fecha_proxima"
+  | null;
+type SortOrder = "asc" | "desc";
+
+interface SortState {
+  field: SortField;
+  order: SortOrder;
+}
+
+function sortInspecciones(
+  data: Inspeccion[],
+  sortState: SortState,
+): Inspeccion[] {
+  if (!sortState.field) return data;
+
+  const sorted = [...data].sort((a, b) => {
+    let aVal: any;
+    let bVal: any;
+
+    switch (sortState.field) {
+      case "registration":
+        aVal = a.registration;
+        bVal = b.registration;
+        break;
+      case "make":
+        aVal = `${a.make || ""} ${a.model || ""}`.trim();
+        bVal = `${b.make || ""} ${b.model || ""}`.trim();
+        break;
+      case "forename":
+        aVal = `${a.forename || ""} ${a.surname || ""}`.trim();
+        bVal = `${b.forename || ""} ${b.surname || ""}`.trim();
+        break;
+      case "estado":
+        aVal = a.estado;
+        bVal = b.estado;
+        break;
+      case "fecha_creacion":
+        aVal = new Date(a.fecha_creacion).getTime();
+        bVal = new Date(b.fecha_creacion).getTime();
+        break;
+      case "fecha_proxima":
+        aVal = new Date(a.fecha_proxima).getTime();
+        bVal = new Date(b.fecha_proxima).getTime();
+        break;
+      default:
+        return 0;
+    }
+
+    if (typeof aVal === "string") {
+      aVal = aVal.toLowerCase();
+      bVal = bVal.toLowerCase();
+      return sortState.order === "asc"
+        ? aVal.localeCompare(bVal)
+        : bVal.localeCompare(aVal);
+    }
+
+    if (sortState.order === "asc") {
+      return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+    } else {
+      return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+    }
+  });
+
+  return sorted;
+}
+
+interface ColumnFilterProps {
+  field: SortField;
+  label: string;
+  currentSort: SortState;
+  onSort: (field: SortField, order: SortOrder) => void;
+}
+
+function ColumnFilter({
+  field,
+  label,
+  currentSort,
+  onSort,
+}: ColumnFilterProps) {
+  const isActive = currentSort.field === field;
+  const icon =
+    isActive && currentSort.order === "asc" ? (
+      <ArrowUp className="w-3 h-3" />
+    ) : isActive && currentSort.order === "desc" ? (
+      <ArrowDown className="w-3 h-3" />
+    ) : (
+      <ArrowUpDown className="w-3 h-3 opacity-40" />
+    );
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="inline-flex items-center gap-1.5 hover:bg-muted/50 rounded px-1.5 py-0.5 transition-colors">
+          <span className="text-xs font-semibold uppercase tracking-wider">
+            {label}
+          </span>
+          <ChevronDown className="w-3.5 h-3.5" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-40">
+        <DropdownMenuItem
+          onClick={() => onSort(field, "asc")}
+          className="gap-2 cursor-pointer"
+        >
+          <ArrowUp className="w-4 h-4" />
+          <span>Orden ascendente</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => onSort(field, "desc")}
+          className="gap-2 cursor-pointer"
+        >
+          <ArrowDown className="w-4 h-4" />
+          <span>Orden descendente</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={() => onSort(null, "asc")}
+          className="gap-2 cursor-pointer text-muted-foreground"
+        >
+          <span>Sin ordenar</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export default function InspeccionesTable({
   inspecciones,
   loading,
@@ -61,6 +208,16 @@ export default function InspeccionesTable({
 }) {
   const [detalle, setDetalle] = useState<Inspeccion | null>(null);
   const [editar, setEditar] = useState<Inspeccion | null>(null);
+  const [sortState, setSortState] = useState<SortState>({
+    field: null,
+    order: "asc",
+  });
+
+  const handleSort = (field: SortField, order: SortOrder) => {
+    setSortState({ field, order });
+  };
+
+  const sortedInspecciones = sortInspecciones(inspecciones, sortState);
 
   if (loading) {
     return (
@@ -75,7 +232,9 @@ export default function InspeccionesTable({
   if (!inspecciones.length) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-        <p className="text-4xl mb-3">🔍</p>
+        <p className="text-4xl mb-3">
+          <Search className="w-9 h-9" />
+        </p>
         <p className="text-sm">No se encontraron inspecciones</p>
       </div>
     );
@@ -86,27 +245,57 @@ export default function InspeccionesTable({
       <div className="rounded-xl border border-border overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/40">
-              <TableHead className="text-xs font-semibold uppercase tracking-wider">
-                Patente / Móvil
+            <TableRow className="bg-muted/40 hover:bg-muted/40">
+              <TableHead className="text-xs">
+                <ColumnFilter
+                  field="registration"
+                  label="Patente / Móvil"
+                  currentSort={sortState}
+                  onSort={handleSort}
+                />
+              </TableHead>
+              <TableHead className="text-xs">
+                <ColumnFilter
+                  field="make"
+                  label="Vehículo"
+                  currentSort={sortState}
+                  onSort={handleSort}
+                />
+              </TableHead>
+              <TableHead className="text-xs">
+                <ColumnFilter
+                  field="forename"
+                  label="Conductor"
+                  currentSort={sortState}
+                  onSort={handleSort}
+                />
               </TableHead>
               <TableHead className="text-xs font-semibold uppercase tracking-wider">
-                Vehículo
+                Licencia
               </TableHead>
-              <TableHead className="text-xs font-semibold uppercase tracking-wider">
-                Conductor
+              <TableHead className="text-xs">
+                <ColumnFilter
+                  field="estado"
+                  label="Estado"
+                  currentSort={sortState}
+                  onSort={handleSort}
+                />
               </TableHead>
-              <TableHead className="text-xs font-semibold uppercase tracking-wider">
-                CPC
+              <TableHead className="text-xs">
+                <ColumnFilter
+                  field="fecha_creacion"
+                  label="Creación"
+                  currentSort={sortState}
+                  onSort={handleSort}
+                />
               </TableHead>
-              <TableHead className="text-xs font-semibold uppercase tracking-wider">
-                Estado
-              </TableHead>
-              <TableHead className="text-xs font-semibold uppercase tracking-wider">
-                Creación
-              </TableHead>
-              <TableHead className="text-xs font-semibold uppercase tracking-wider">
-                Próxima
+              <TableHead className="text-xs">
+                <ColumnFilter
+                  field="fecha_proxima"
+                  label="Próxima"
+                  currentSort={sortState}
+                  onSort={handleSort}
+                />
               </TableHead>
               <TableHead className="text-xs font-semibold uppercase tracking-wider text-right">
                 Acciones
@@ -114,13 +303,13 @@ export default function InspeccionesTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {inspecciones.map((ins) => (
+            {sortedInspecciones.map((ins) => (
               <TableRow
                 key={ins.id}
                 className="hover:bg-muted/30 transition-colors"
               >
                 <TableCell>
-                  <p className=" font-bold text-sm">{ins.registration}</p>
+                  <p className="font-bold text-sm">{ins.registration}</p>
                   {ins.callsign && (
                     <p className="text-xs text-muted-foreground">
                       Móvil {ins.callsign}
@@ -143,7 +332,7 @@ export default function InspeccionesTable({
                       "—"}
                   </p>
                 </TableCell>
-                <TableCell className=" text-xs">
+                <TableCell className="text-xs">
                   {ins.cpc_card_number || "—"}
                 </TableCell>
                 <TableCell>

@@ -33,19 +33,19 @@ interface ViajeResponse {
 
 export default function ViajePage() {
   const params = useParams();
-  const id_info = params?.id_info as string;
+  const auth_id = params?.auth_id as string;
 
   const [data, setData] = useState<ViajeResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    if (!id_info) return;
+    if (!auth_id) return;
 
     const fetchData = async () => {
       try {
         const res = await axios.get<ViajeResponse>(
-          `https://ecotrans-pasajero-370980788525.europe-west1.run.app/dataPassenger/viaje-admin/${id_info}`,
+          `https://ecotrans-pasajero-370980788525.europe-west1.run.app/dataPassenger/viaje-admin/${auth_id}`,
         );
         setData(res.data);
       } catch (err) {
@@ -57,7 +57,7 @@ export default function ViajePage() {
     };
 
     fetchData();
-  }, [id_info]);
+  }, [auth_id]);
 
   // ============================
   // LOADING

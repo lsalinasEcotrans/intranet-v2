@@ -1,46 +1,42 @@
-import React from "react";
-
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UsersTab } from "./components/users-tab";
 import { RolesTab } from "./components/roles-tab";
+import { Users, Shield } from "lucide-react";
 
-import { Users, ShieldUser } from "lucide-react";
-
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-export default function TestPage() {
+export default function AdminPage() {
   return (
-    <div className="p-8 bg-muted/50">
-      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-        <div className="rounded-lg border bg-card">
-          <div className="p-6">
-            <h1 className="text-2xl font-bold mb-6">Settings</h1>
-            <Tabs defaultValue="usuarios" className="gap-4">
-              <TabsList className="grid w-full h-full grid-cols-2">
-                <TabsTrigger
-                  value="usuarios"
-                  className="flex flex-col items-center gap-1 px-2.5 sm:px-3"
-                >
-                  <Users />
-                  Usuarios
-                </TabsTrigger>
-                <TabsTrigger
-                  value="roles"
-                  className="flex flex-col items-center gap-1 px-2.5 sm:px-3"
-                >
-                  <ShieldUser />
-                  Roles
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="usuarios" className="mt-6">
-                <UsersTab />
-              </TabsContent>
-              <TabsContent value="roles" className="mt-6">
-                <RolesTab />
-              </TabsContent>
-            </Tabs>
-          </div>
-        </div>
+    <main className="min-h-screen bg-background">
+      <div className="container mx-auto py-8 px-4">
+        <header className="mb-8">
+          <h1 className="text-3xl font-bold tracking-tight">
+            Panel de Administración
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Gestiona usuarios y roles del sistema
+          </p>
+        </header>
+
+        <Tabs defaultValue="users" className="space-y-6">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="users" className="gap-2">
+              <Users className="h-4 w-4" />
+              Usuarios
+            </TabsTrigger>
+            <TabsTrigger value="roles" className="gap-2">
+              <Shield className="h-4 w-4" />
+              Roles
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="users">
+            <UsersTab />
+          </TabsContent>
+
+          <TabsContent value="roles">
+            <RolesTab />
+          </TabsContent>
+        </Tabs>
       </div>
-    </div>
+    </main>
   );
 }

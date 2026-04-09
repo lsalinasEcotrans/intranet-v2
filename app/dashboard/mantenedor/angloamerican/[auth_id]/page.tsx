@@ -89,8 +89,24 @@ interface FormData {
   longitud_destino: number | null;
 }
 
+function getUserFromCookie() {
+  const cookies = document.cookie.split("; ");
+  const userCookie = cookies.find((row) => row.startsWith("user_data="));
+
+  if (!userCookie) return null;
+
+  try {
+    const value = userCookie.split("=")[1];
+    const decoded = decodeURIComponent(value);
+    return JSON.parse(decoded);
+  } catch (error) {
+    console.error("Error parseando cookie user_data", error);
+    return null;
+  }
+}
+
 export default function EditarPasajeroPage() {
-  const { id_info } = useParams<{ id_info: string }>();
+  const { auth_id } = useParams<{ auth_id: string }>();
   const router = useRouter();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -124,7 +140,7 @@ export default function EditarPasajeroPage() {
   useEffect(() => {
     const fetchPasajero = async () => {
       try {
-        const res = await axios.get(`/api/pasajeros/${id_info}`);
+        const res = await axios.get(`/api/pasajeros/${auth_id}`);
         const raw = Array.isArray(res.data) ? res.data[0] : res.data;
 
         if (!raw) {
@@ -157,7 +173,7 @@ export default function EditarPasajeroPage() {
     };
 
     fetchPasajero();
-  }, [id_info]);
+  }, [auth_id]);
 
   function handleChange(field: keyof FormData, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -241,6 +257,8 @@ export default function EditarPasajeroPage() {
   }
 
   async function handleSave() {
+    const user = getUserFromCookie();
+    const username = user?.username || "system";
     if (
       form.latitud_origen === null ||
       form.longitud_origen === null ||
@@ -253,7 +271,7 @@ export default function EditarPasajeroPage() {
 
     setIsSaving(true);
     try {
-      await axios.put(`/api/pasajeros/${id_info}`, {
+      await axios.put(`/api/pasajeros/${auth_id}`, {
         rut: form.rut,
         nombre: form.nombre,
         contacto: form.contacto,
@@ -268,6 +286,8 @@ export default function EditarPasajeroPage() {
         direccion_destino: form.direccion_destino,
         latitud_destino: form.latitud_destino,
         longitud_destino: form.longitud_destino,
+        // 👇 NUEVO
+        user_log: username,
       });
       toast.success("Pasajero actualizado correctamente");
       router.back();
@@ -281,7 +301,7 @@ export default function EditarPasajeroPage() {
   async function handleResetPassword() {
     setIsResetting(true);
     try {
-      await axios.patch(`/api/pasajeros/${id_info}/reset-password`);
+      await axios.patch(`/api/pasajeros/${auth_id}/reset-password`);
       toast.success("Contraseña reseteada correctamente");
     } catch {
       toast.error("Error al resetear la contraseña");
@@ -351,7 +371,7 @@ export default function EditarPasajeroPage() {
         </Button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold tracking-tight">Editar Pasajero</h1>
-          <p className="text-sm text-muted-foreground">ID #{id_info}</p>
+          <p className="text-sm text-muted-foreground">ID #{auth_id}</p>
         </div>
         {/* Acciones en el header */}
         <AlertDialog>
