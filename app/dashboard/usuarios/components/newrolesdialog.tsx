@@ -82,7 +82,7 @@ const menuItems: MenuItem[] = [
     icon: "Database",
     items: [
       { title: "Banco de Chile", url: "#" },
-      { title: "Hualpen", url: "#" },
+      { title: "Hualpen", url: "/dashboard/cargas-masivas/hualpen" },
     ],
   },
   {
