@@ -662,7 +662,7 @@ export function PasajerosTable() {
                   key={p.id_info}
                   className={
                     turnoFiltro === "TurnoH" && respondieronSet.has(p.auth_id)
-                      ? "bg-emerald-50 dark:bg-emerald-950/20"
+                      ? "bg-emerald-100 dark:bg-emerald-950/20"
                       : ""
                   }
                 >
