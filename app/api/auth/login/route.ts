@@ -15,13 +15,19 @@ const AUTH_API =
 ============================ */
 function sanitize(text: string): string {
   if (typeof text !== "string") return "";
-  return text.replace(/[<>"'`%;()]/g, "").replace(/\s+/g, " ").trim();
+  return text
+    .replace(/[<>"'`%;()]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /* ============================
    🔐 VALIDACIÓN
 ============================ */
-function validateCredentials(username: string, password: string): string | null {
+function validateCredentials(
+  username: string,
+  password: string,
+): string | null {
   if (!username || username.length < 3 || username.length > 100) {
     return "Usuario inválido";
   }
@@ -63,7 +69,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => null);
 
     if (!body || typeof body !== "object") {
-      return NextResponse.json({ error: "Solicitud inválida" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Solicitud inválida" },
+        { status: 400 },
+      );
     }
 
     let { username, password } = body;
@@ -71,7 +80,7 @@ export async function POST(request: NextRequest) {
     if (typeof username !== "string" || typeof password !== "string") {
       return NextResponse.json(
         { error: "Credenciales inválidas" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -80,10 +89,7 @@ export async function POST(request: NextRequest) {
 
     const validationError = validateCredentials(username, password);
     if (validationError) {
-      return NextResponse.json(
-        { error: validationError },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
     /* ============================
@@ -96,14 +102,14 @@ export async function POST(request: NextRequest) {
     } catch {
       return NextResponse.json(
         { error: "Credenciales incorrectas" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     if (!authData.secret || !authData.user?.name) {
       return NextResponse.json(
         { error: "Autenticación fallida" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -119,15 +125,12 @@ export async function POST(request: NextRequest) {
     } catch {
       return NextResponse.json(
         { error: "Acceso no autorizado" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
     if (!userData?.id || !userData?.username) {
-      return NextResponse.json(
-        { error: "Usuario no válido" },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Usuario no válido" }, { status: 403 });
     }
 
     /* ============================
@@ -136,7 +139,7 @@ export async function POST(request: NextRequest) {
     if (userData.isSuspended === 0) {
       return NextResponse.json(
         { error: "Usuario suspendido" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -147,7 +150,7 @@ export async function POST(request: NextRequest) {
           requiresPasswordChange: true,
           redirectTo: "/cambiar-contrasena",
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -165,12 +168,12 @@ export async function POST(request: NextRequest) {
             requiresPasswordChange: true,
             redirectTo: "/cambiar-contrasena",
           },
-          { status: 403 }
+          { status: 403 },
         );
       }
 
       const diffDays = Math.ceil(
-        (expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+        (expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
       );
 
       if (diffDays <= 3) {
@@ -186,7 +189,7 @@ export async function POST(request: NextRequest) {
     ============================ */
     const finalMenu = mergePermissions(
       userData.json_menu,
-      userData.extra_permissions
+      userData.extra_permissions,
     );
 
     /* ============================
@@ -210,10 +213,11 @@ export async function POST(request: NextRequest) {
         id: userData.id,
         username: userData.username,
         fullName: userData.full_name,
+        cargo: userData.cargo,
+        departamento: userData.departamento,
         role: userData.role_name,
         extra_permissions: userData.extra_permissions || null,
-        passwordExpiringWarning:
-          userData.passwordExpiringWarning || null,
+        passwordExpiringWarning: userData.passwordExpiringWarning || null,
       }),
       {
         httpOnly: false,
@@ -221,7 +225,7 @@ export async function POST(request: NextRequest) {
         sameSite: "lax",
         path: "/",
         maxAge: 60 * 60 * 24 * 7,
-      }
+      },
     );
 
     // 📋 menú final
@@ -242,27 +246,27 @@ export async function POST(request: NextRequest) {
         id: userData.id,
         username: userData.username,
         fullName: userData.full_name,
+        cargo: userData.cargo,
+        departamento: userData.departamento,
         role: userData.role_name,
         menu: finalMenu,
         extra_permissions: userData.extra_permissions || null,
-        passwordExpiringWarning:
-          userData.passwordExpiringWarning || null,
+        passwordExpiringWarning: userData.passwordExpiringWarning || null,
       },
     });
-
   } catch (error: any) {
     console.error("❌ Error login:", error);
 
     if (error.response) {
       return NextResponse.json(
         { error: error.response.data?.detail || "Error" },
-        { status: error.response.status }
+        { status: error.response.status },
       );
     }
 
     return NextResponse.json(
       { error: "Error interno del servidor" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

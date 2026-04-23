@@ -36,7 +36,7 @@ async function getAccessToken(): Promise<string> {
     return response.data.access_token;
   } catch (err: any) {
     throw new Error(
-      `Token request failed: ${err.response?.status} - ${err.response?.data}`
+      `Token request failed: ${err.response?.status} - ${err.response?.data}`,
     );
   }
 }
@@ -57,8 +57,8 @@ async function getMessageById(accessToken: string, messageId: string) {
     if (err.response?.status === 404) return null;
     throw new Error(
       `Graph error ${err.response?.status} - ${JSON.stringify(
-        err.response?.data
-      )}`
+        err.response?.data,
+      )}`,
     );
   }
 }
@@ -68,7 +68,7 @@ async function getMessageById(accessToken: string, messageId: string) {
    ========================================================================= */
 async function getMessagesByConversation(
   accessToken: string,
-  conversationId: string
+  conversationId: string,
 ) {
   const url =
     `https://graph.microsoft.com/v1.0/users/${userEmail}/messages` +
@@ -84,8 +84,8 @@ async function getMessagesByConversation(
   } catch (err: any) {
     throw new Error(
       `Error buscando conversación ${err.response?.status} - ${JSON.stringify(
-        err.response?.data
-      )}`
+        err.response?.data,
+      )}`,
     );
   }
 }
@@ -104,7 +104,7 @@ async function getAttachments(accessToken: string, messageId: string) {
     return res.data.value || [];
   } catch (err: any) {
     throw new Error(
-      `Error obteniendo adjuntos: ${JSON.stringify(err.response?.data)}`
+      `Error obteniendo adjuntos: ${JSON.stringify(err.response?.data)}`,
     );
   }
 }
@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
     if (!messageId && !conversationId) {
       return NextResponse.json(
         { error: "Debes enviar messageId o conversationId" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -157,14 +157,14 @@ export async function POST(req: NextRequest) {
     if (!message) {
       return NextResponse.json(
         { error: "Mensaje no encontrado" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     // Incrustar imágenes inline
     message.body.content = embedInlineImages(
       message.body.content || "",
-      attachments
+      attachments,
     );
 
     // Formatear adjuntos descargables
@@ -182,7 +182,7 @@ export async function POST(req: NextRequest) {
     console.error(err);
     return NextResponse.json(
       { error: err.message || "Internal error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -203,9 +203,9 @@ export async function PUT(req: NextRequest) {
 
     // 1️⃣ Crear borrador
     const draftRes = await axios.post(
-      `https://graph.microsoft.com/v1.0/users/${userEmail}/messages/${messageId}/createReply`,
+      `https://graph.microsoft.com/v1.0/users/${userEmail}/messages/${messageId}/createReplyAll`,
       {},
-      { headers }
+      { headers },
     );
 
     const draft = draftRes.data;
@@ -214,7 +214,7 @@ export async function PUT(req: NextRequest) {
     const draftFull = await axios
       .get(
         `https://graph.microsoft.com/v1.0/users/${userEmail}/messages/${draft.id}`,
-        { headers }
+        { headers },
       )
       .then((r) => r.data);
 
@@ -237,14 +237,14 @@ export async function PUT(req: NextRequest) {
           ...headers,
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
     // 5️⃣ Enviar email
     await axios.post(
       `https://graph.microsoft.com/v1.0/users/${userEmail}/messages/${draft.id}/send`,
       {},
-      { headers }
+      { headers },
     );
 
     return NextResponse.json({ success: true });
@@ -252,7 +252,7 @@ export async function PUT(req: NextRequest) {
     console.error(err);
     return NextResponse.json(
       { error: err.message || "Internal error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

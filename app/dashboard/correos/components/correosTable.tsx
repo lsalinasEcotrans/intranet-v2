@@ -54,7 +54,7 @@ export default function CorreosTable() {
     correosNormalizados,
     searchTerm,
     estadoFilter,
-    showOnlyMine
+    showOnlyMine,
   );
 
   const handleClick = useCallback(
@@ -65,7 +65,7 @@ export default function CorreosTable() {
 
       if (correo.esMio) {
         router.push(
-          `/dashboard/correos/owa_detalle/${correo.idCorreo}?intencion=${intencionParam}`
+          `/dashboard/correos/owa_detalle/${correo.idCorreo}?intencion=${intencionParam}`,
         );
         return;
       }
@@ -75,7 +75,7 @@ export default function CorreosTable() {
         setOpenDialog(true);
       }
     },
-    [user, router]
+    [user, router],
   );
 
   const handleAutoAsignar = useCallback(async () => {
@@ -85,22 +85,22 @@ export default function CorreosTable() {
     try {
       await axios.put(
         `https://ecotrans-intranet-370980788525.europe-west1.run.app/headers/asignar/${selectedCorreo.idCorreo}`,
-        { user_id: user.id }
+        { user_id: user.id },
       );
 
       setCorreos((prev) =>
         prev.map((c) =>
           c.id === selectedCorreo.id
             ? { ...c, estado: "En proceso", asignado: user.fullName }
-            : c
-        )
+            : c,
+        ),
       );
 
       setOpenDialog(false);
       router.push(
         `/dashboard/correos/owa_detalle/${
           selectedCorreo.idCorreo
-        }?intencion=${encodeURIComponent(selectedCorreo.intencion)}`
+        }?intencion=${encodeURIComponent(selectedCorreo.intencion)}`,
       );
     } catch (err) {
       console.error("Error autoasignando:", err);
@@ -140,7 +140,7 @@ export default function CorreosTable() {
                 <TableHead className="font-semibold">Intención</TableHead>
                 <TableHead className="font-semibold">Estado</TableHead>
                 <TableHead className="font-semibold">Asignado</TableHead>
-                <TableHead></TableHead>
+                {/* <TableHead></TableHead> */}
               </TableRow>
             </TableHeader>
             <TableBody>

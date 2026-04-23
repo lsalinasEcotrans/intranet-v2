@@ -84,7 +84,7 @@ function buildSignatureHTML(user: UserData): string {
       <img
         src="https://www.ecotranschile.cl/img/logoEcotrans_50px.png"
         alt="Logo Ecotrans"
-        style="height:50px; border:0; display:block;"
+        style="height:50px; border:0; display:block; padding-top:50px;"
       />
     </td>
 
@@ -235,7 +235,7 @@ export function ReplyManual({ emailId }: InformarButtonProps) {
         `https://ecotrans-intranet-370980788525.europe-west1.run.app/headers/estado/${rowId}`,
         {
           estado: 2,
-        }
+        },
       );
 
       setSendStatus("success");
@@ -394,7 +394,7 @@ export function ReplyManual({ emailId }: InformarButtonProps) {
 
             {sendStatus === "error" && sendError && (
               <div className="mt-2 flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-destructive">
-                <XCircle className="h-5 w-5 flex-shrink-0" />
+                <XCircle className="h-5 w-5 shrink-0" />
                 <p className="text-sm">{sendError}</p>
               </div>
             )}

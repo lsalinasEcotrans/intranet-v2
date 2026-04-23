@@ -46,7 +46,7 @@ export default function EmailSignature({
             </p>
 
             <p style={{ margin: 0, fontSize: "12px", color: "#555" }}>
-              {cargo} | {departamento}
+              Dpto. Atencion al cliente | Callcenter
             </p>
 
             <img

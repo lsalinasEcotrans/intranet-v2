@@ -143,7 +143,7 @@ export default function CorreoRow({ correo, onClick }: CorreoRowProps) {
           </Badge>
         )}
       </TableCell>
-      <TableCell>
+      {/* <TableCell>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -164,7 +164,7 @@ export default function CorreoRow({ correo, onClick }: CorreoRowProps) {
             <DropdownMenuItem>Papelera</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      </TableCell>
+      </TableCell> */}
     </TableRow>
   );
 }

@@ -132,7 +132,10 @@ const menuItems: MenuItem[] = [
     title: "Sistemas",
     url: "#",
     icon: "MonitorCog",
-    items: [{ title: "Usuarios", url: "/dashboard/usuarios" }],
+    items: [
+      { title: "Usuarios", url: "/dashboard/usuarios" },
+      { title: "Clientes dashboard", url: "/dashboard/clientes_dashboard" },
+    ],
   },
   {
     title: "Pruebas",

@@ -23,7 +23,7 @@ export default function EmailFormLayout({
   const [showFullscreen, setShowFullscreen] = useState(false);
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden bg-zinc-100">
+    <div className="flex h-screen overflow-hidden bg-zinc-100">
       {/* Panel del correo */}
       <div className="flex-1 overflow-auto">
         <EmailViewer

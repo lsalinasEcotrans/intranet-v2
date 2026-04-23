@@ -70,7 +70,9 @@ export function CompleteButton({ emailId, onNoInform }: CompleteButtonProps) {
 
               <AlertDialogDescription className="text-center">
                 El correo se marcará como <strong>completado</strong>.
-                <div>No podrás revertir esta acción.</div>
+                <span className="block mt-2">
+                  No podrás revertir esta acción.
+                </span>
               </AlertDialogDescription>
             </AlertDialogHeader>
 
